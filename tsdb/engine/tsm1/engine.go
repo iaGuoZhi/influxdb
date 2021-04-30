@@ -896,6 +896,12 @@ const logMsg = "IsIdle false because nonzero"
 // shard is fully compacted.  If trace logging is enabled, it logs the reasons why an engine
 // is busy
 func (e *Engine) loggedIsIdle(isLogged bool) bool {
+	const cacheCompactions = "Cache Compactions: "
+	const levelZeroCompactions = "Level Zero Compactions: "
+	const levelOneCompactions = "Level One Compactions: "
+	const levelTwoCompactions = "Level Two Compactions: "
+	const fullCompactions = "Full Compactions: "
+	const optimizeCompactions = "TSM Optimization Compactions: "
 	var log *zap.Logger
 
 	if isLogged {
@@ -907,12 +913,12 @@ func (e *Engine) loggedIsIdle(isLogged bool) bool {
 		log.Info(logMsg, zap.Uint64("Cache size", e.Cache.Size()))
 	}
 
-	runningCompactions := logCheckForCompactions(log, &e.stats.CacheCompactionsActive, `e.stats.CacheCompactionsActive`)
-	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[0], `e.stats.TSMCompactionsActive[0]`)
-	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[1], `e.stats.TSMCompactionsActive[1]`)
-	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[2], `e.stats.TSMCompactionsActive[2]`)
-	runningCompactions += logCheckForCompactions(log, &e.stats.TSMFullCompactionsActive, `e.stats.TSMFullCompactionsActive`)
-	runningCompactions += logCheckForCompactions(log, &e.stats.TSMOptimizeCompactionsActive, `e.stats.TSMOptimizeCompactionsActive`)
+	runningCompactions := logCheckForCompactions(log, &e.stats.CacheCompactionsActive, cacheCompactions)
+	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[0], levelZeroCompactions)
+	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[1], levelOneCompactions)
+	runningCompactions += logCheckForCompactions(log, &e.stats.TSMCompactionsActive[2], levelTwoCompactions)
+	runningCompactions += logCheckForCompactions(log, &e.stats.TSMFullCompactionsActive, fullCompactions)
+	runningCompactions += logCheckForCompactions(log, &e.stats.TSMOptimizeCompactionsActive, optimizeCompactions)
 	fullyCompacted := e.CompactionPlan.FullyCompacted()
 	if !fullyCompacted && log != nil {
 		log.Info("IsIdle false because", zap.Bool("FullyCompacted", fullyCompacted))
