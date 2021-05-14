@@ -387,6 +387,7 @@ func encodeFloatBlockUsing(buf []byte, values []Value, tsenc TimeEncoder, venc *
 	}
 	// Encoded float values
 	vb, err := venc.Bytes()
+	fmt.Printf("Floats size in bytes: %v\n", binary.Size(vb))
 	if err != nil {
 		return nil, err
 	}

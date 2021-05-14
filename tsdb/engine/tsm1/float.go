@@ -94,6 +94,7 @@ func (s *FloatEncoder) Write(v float64) {
 		// first point
 		s.val = v
 		s.first = false
+		fmt.Printf("Value: %.5f, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -101,6 +102,7 @@ func (s *FloatEncoder) Write(v float64) {
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
 
 	if vDelta == 0 {
+		fmt.Printf("Value: %.5f, Delta = %b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBit(bitstream.Zero)
 	} else {
 		s.bw.WriteBit(bitstream.One)
@@ -116,6 +118,7 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
+			fmt.Printf("Value: %.5f, Delta = %b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
@@ -130,6 +133,7 @@ func (s *FloatEncoder) Write(v float64) {
 			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 			// adjust it back to 64 on unpacking.
 			sigbits := 64 - leading - trailing
+			fmt.Printf("Value: %.5f, Delta = %b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}

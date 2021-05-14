@@ -15,20 +15,20 @@ func TestFloatEncoder_Simple(t *testing.T) {
 	// Example from the paper
 	s := tsm1.NewFloatEncoder()
 
-	s.Write(12)
-	s.Write(12)
-	s.Write(24)
+	s.Write(12.3)
+	s.Write(12.3)
+	s.Write(24.5)
 
 	// extra tests
 
 	// floating point masking/shifting bug
-	s.Write(13)
-	s.Write(24)
+	s.Write(13.1)
+	s.Write(24.5)
 
 	// delta-of-delta sizes
-	s.Write(24)
-	s.Write(24)
-	s.Write(24)
+	s.Write(24.6)
+	s.Write(24.7)
+	s.Write(24.8)
 
 	s.Flush()
 
@@ -43,16 +43,16 @@ func TestFloatEncoder_Simple(t *testing.T) {
 	}
 
 	want := []float64{
-		12,
-		12,
-		24,
+		12.3,
+		12.3,
+		24.5,
 
-		13,
-		24,
+		13.1,
+		24.5,
 
-		24,
-		24,
-		24,
+		24.6,
+		24.7,
+		24.8,
 	}
 
 	for _, w := range want {

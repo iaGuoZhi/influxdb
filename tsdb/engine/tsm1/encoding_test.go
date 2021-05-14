@@ -1,6 +1,7 @@
 package tsm1_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -66,6 +67,33 @@ func TestEncoding_FloatBlock_SimilarFloats(t *testing.T) {
 	values[4] = tsm1.NewValue(1444238198439917000, 6.000661e+06)
 
 	b, err := tsm1.Values(values).Encode(nil)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b) * 8, b)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var decodedValues []tsm1.Value
+	decodedValues, err = tsm1.DecodeBlock(b, decodedValues)
+	if err != nil {
+		t.Fatalf("unexpected error decoding block: %v", err)
+	}
+
+	if !reflect.DeepEqual(decodedValues, values) {
+		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, values)
+	}
+}
+
+func TestEncoding_FloatBlock_SlopeFloats(t *testing.T) {
+	var firstTimestamp int64 = 1444238178437870000
+	var size = 100
+	values := make([]tsm1.Value, size)
+	for i := 0; i < size; i++ {
+		var value float64 = 1.07 * float64(i) + 20 + rand.Float64() * 3
+		values[i] = tsm1.NewValue(firstTimestamp, value)
+	}
+
+	b, err := tsm1.Values(values).Encode(nil)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b) * 8, b)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
