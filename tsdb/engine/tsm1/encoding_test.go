@@ -3,8 +3,10 @@ package tsm1_test
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -67,7 +69,7 @@ func TestEncoding_FloatBlock_SimilarFloats(t *testing.T) {
 	values[4] = tsm1.NewValue(1444238198439917000, 6.000661e+06)
 
 	b, err := tsm1.Values(values).Encode(nil)
-	fmt.Printf("Total bits: %v, %b\n", binary.Size(b) * 8, b)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -83,17 +85,81 @@ func TestEncoding_FloatBlock_SimilarFloats(t *testing.T) {
 	}
 }
 
+func TestPrintFloats(t *testing.T) {
+	v := 3.1415926
+	s32 := strconv.FormatFloat(v, 'e', -1, 32)
+	fmt.Printf("%T, %v\n", s32, s32)
+	s64 := strconv.FormatFloat(v, 'e', -1, 64)
+	fmt.Printf("%T, %v\n", s64, s64)
+	v = 33333333.14159256
+	s32 = strconv.FormatFloat(v, 'e', -1, 32)
+	fmt.Printf("%T, %v\n", s32, s32)
+	s64 = strconv.FormatFloat(v, 'e', -1, 64)
+	fmt.Printf("%T, %v\n", s64, s64)
+
+	fmt.Printf("%G, %b\n", v, math.Float64bits(v))
+	fmt.Printf("%G, %b\n", float32(v), math.Float32bits(float32(v)))
+
+}
+
+func GetFloatValue(value tsm1.Value) float64 {
+	switch v :=value.Value().(type) {
+	case float64:
+		return v
+	default:
+		return 0
+	}
+}
+
 func TestEncoding_FloatBlock_SlopeFloats(t *testing.T) {
+	rand.Seed(23)
 	var firstTimestamp int64 = 1444238178437870000
 	var size = 100
 	values := make([]tsm1.Value, size)
 	for i := 0; i < size; i++ {
-		var value float64 = 1.07 * float64(i) + 20 + rand.Float64() * 3
+		var value float64 = 300 * float64(i) + 20 + float64(rand.Int() % 10) * 0.1
 		values[i] = tsm1.NewValue(firstTimestamp, value)
 	}
 
+	/*for i := 0; i < size; i++ {
+		var value float64 = GetFloatValue(values[i])
+		alteredValue := value + 1000.0
+		assert.Equal(t, value, alteredValue - 1000.0)
+	}*/
+	value := 20.0
+	for i := 0; i < size; i++ {
+		value = value + 0.1
+		fmt.Printf("%f\n", value)
+	}
+
 	b, err := tsm1.Values(values).Encode(nil)
-	fmt.Printf("Total bits: %v, %b\n", binary.Size(b) * 8, b)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var decodedValues []tsm1.Value
+	decodedValues, err = tsm1.DecodeBlock(b, decodedValues)
+	if err != nil {
+		t.Fatalf("unexpected error decoding block: %v", err)
+	}
+
+	if !reflect.DeepEqual(decodedValues, values) {
+		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, values)
+	}
+}
+
+func TestEncoding_FloatBlock_Temperature_Floats(t *testing.T) {
+	var firstTimestamp int64 = 1444238178437870000
+	temperatures := [...]float64{64.2, 49.4, 48.8, 46.4, 47.9, 48.7, 48.9, 49.1, 49.0, 51.9, 51.7, 51.3, 47.0, 46.9, 47.5, 45.9, 44.5, 50.7, 54.0, 52.6, 54.2, 51.0, 53.5, 54.2, 54.2, 52.6, 55.5, 53.8, 54.3, 57.4, 56.9, 50.4, 50.1, 54.1, 49.1, 48.8, 50.7, 51.6, 52.6, 56.3, 59.0, 59.4, 55.5, 57.0, 60.8, 61.8, 57.7, 56.1, 53.4, 51.4, 52.6, 52.5, 57.5, 55.1, 54.3, 63.0, 60.0, 48.3, 55.3, 52.2, 56.6, 54.7, 51.9, 54.5, 58.5, 53.4, 51.8, 53.3, 65.6, 68.7, 58.4, 55.1, 52.8, 53.9, 54.8, 55.0, 52.8, 56.1, 56.5, 56.7, 51.4, 51.6, 53.3, 56.4, 54.7, 54.5, 53.4, 56.6, 53.2, 46.6, 47.4, 52.0, 62.2, 64.2, 59.5, 59.0, 54.9, 54.2, 57.8, 60.0, 61.1, 56.2, 56.1, 54.6, 54.5, 52.0, 56.6, 60.4, 62.7, 61.0, 56.5, 56.0, 53.1, 51.1, 57.2, 56.3, 56.5, 60.8, 60.4, 61.5}
+
+	values := make([]tsm1.Value, len(temperatures))
+	for i := 0; i < len(temperatures); i++ {
+		values[i] = tsm1.NewValue(firstTimestamp, temperatures[i])
+	}
+
+	b, err := tsm1.Values(values).Encode(nil)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

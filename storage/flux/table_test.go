@@ -2947,7 +2947,6 @@ func TestStorageReader_ReadGroupSelectTags(t *testing.T) {
 				},
 			},
 		},
-
 	}
 
 	for _, tt := range cases {
@@ -3031,8 +3030,8 @@ func TestStorageReader_ReadGroupNoAgg(t *testing.T) {
 					BucketID:       reader.Bucket,
 					Bounds:         reader.Bounds,
 				},
-				GroupMode:       query.GroupModeBy,
-				GroupKeys:       []string{"t1"},
+				GroupMode: query.GroupModeBy,
+				GroupKeys: []string{"t1"},
 			}, mem)
 			if err != nil {
 				t.Fatal(err)

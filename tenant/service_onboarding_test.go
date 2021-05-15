@@ -198,7 +198,7 @@ func TestOnboardService_RetentionPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, onboard.Bucket.RetentionPeriod, time.Duration(retention) * time.Second, "Retention policy should pass through")
+	assert.Equal(t, onboard.Bucket.RetentionPeriod, time.Duration(retention)*time.Second, "Retention policy should pass through")
 }
 
 func TestOnboardService_RetentionPolicyDeprecated(t *testing.T) {
