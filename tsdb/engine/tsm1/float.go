@@ -83,8 +83,69 @@ func (s *FloatEncoder) Flush() {
 	}
 }
 
+
 // Write encodes v to the underlying buffer.
 func (s *FloatEncoder) Write(v float64) {
+	// Only allow NaN as a sentinel value
+	if math.IsNaN(v) && !s.finished {
+		s.err = fmt.Errorf("unsupported value: NaN")
+		return
+	}
+	if s.first {
+		// first point
+		s.val = v
+		s.first = false
+		fmt.Printf("Value: %G, writing first as float64\n", s.val)
+		s.bw.WriteBits(math.Float64bits(v), 64)
+		return
+	}
+
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
+
+	if vDelta == 0 {
+		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+		s.bw.WriteBit(bitstream.Zero)
+	} else {
+		s.bw.WriteBit(bitstream.One)
+
+		leading := uint64(bits.LeadingZeros64(vDelta))
+		trailing := uint64(bits.TrailingZeros64(vDelta))
+
+		// Clamp number of leading zeros to avoid overflow when encoding
+		leading &= 0x1F
+		if leading >= 15 {
+			leading = 14
+		}
+
+
+		s.leading, s.trailing = leading, trailing
+
+		// Note that if leading == trailing == 0, then sigbits == 64.  But that
+		// value doesn't actually fit into the 6 bits we have.
+		// Luckily, we never need to encode 0 significant bits, since that would
+		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
+		// adjust it back to 64 on unpacking.
+		sigbits := 64 - 2 * (leading / 2) - trailing
+		if (trailing < 6) {
+			s.bw.WriteBit(bitstream.Zero)
+			s.bw.WriteBits(leading / 2, 3)
+			s.bw.WriteBits(vDelta, int(sigbits + trailing))
+			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
+		} else {
+			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+			s.bw.WriteBit(bitstream.One)
+			s.bw.WriteBits(leading / 2, 3)
+			s.bw.WriteBits(sigbits, 6)
+			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
+		}
+
+	}
+
+	s.val = v
+}
+
+// Write2 encodes v to the underlying buffer.
+func (s *FloatEncoder) Write2(v float64) {
 	// Only allow NaN as a sentinel value
 	if math.IsNaN(v) && !s.finished {
 		s.err = fmt.Errorf("unsupported value: NaN")
@@ -189,6 +250,101 @@ func (it *FloatDecoder) SetBytes(b []byte) error {
 
 // Next returns true if there are remaining values to read.
 func (it *FloatDecoder) Next() bool {
+	if it.err != nil || it.finished {
+		return false
+	}
+
+	if it.first {
+		it.first = false
+		// mark as finished if there were no values.
+		if it.val == uvnan { // IsNaN
+			it.finished = true
+			return false
+		}
+
+		return true
+	}
+
+	// read compressed value
+	var bit bool
+	if it.br.CanReadBitFast() {
+		bit = it.br.ReadBitFast()
+	} else if v, err := it.br.ReadBit(); err != nil {
+		it.err = err
+		return false
+	} else {
+		bit = v
+	}
+	if !bit {
+		// it.val = it.val
+	} else {
+		var bit bool
+		if it.br.CanReadBitFast() {
+			bit = it.br.ReadBitFast()
+		} else if v, err := it.br.ReadBit(); err != nil {
+			it.err = err
+			return false
+		} else {
+			bit = v
+		}
+
+		if !bit {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			it.leading = bits * 2
+
+			mbits := 64 - it.leading
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 0
+		} else {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			it.leading = bits * 2
+
+			bits, err = it.br.ReadBits(6)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			mbits := bits
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 64 - it.leading - mbits
+		}
+
+		mbits := uint(64 - it.leading - it.trailing)
+		bits, err := it.br.ReadBits(mbits)
+		if err != nil {
+			it.err = err
+			return false
+		}
+
+		vbits := it.val
+		vbits ^= (bits << it.trailing)
+
+		if vbits == uvnan { // IsNaN
+			it.finished = true
+			return false
+		}
+		it.val = vbits
+	}
+
+	return true
+}
+
+// Next2 returns true if there are remaining values to read.
+func (it *FloatDecoder) Next2() bool {
 	if it.err != nil || it.finished {
 		return false
 	}
