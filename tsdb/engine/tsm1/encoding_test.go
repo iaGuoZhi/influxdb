@@ -165,6 +165,34 @@ func TestEncoding_FloatBlock_Temperature_Floats(t *testing.T) {
 	}
 }
 
+
+func TestEncoding_FloatBlock_Integer_Floats(t *testing.T) {
+	rand.Seed(23)
+	var firstTimestamp int64 = 1444238178437870000
+	var size = 1000
+	integers := make([]tsm1.Value, size)
+	for i := 0; i < size; i++ {
+		var value float64 = float64(rand.Int() % 1000)
+		integers[i] = tsm1.NewValue(firstTimestamp, value)
+	}
+
+	b, err := tsm1.Values(integers).Encode(nil)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var decodedValues []tsm1.Value
+	decodedValues, err = tsm1.DecodeBlock(b, decodedValues)
+	if err != nil {
+		t.Fatalf("unexpected error decoding block: %v", err)
+	}
+
+	if !reflect.DeepEqual(decodedValues, integers) {
+		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, integers)
+	}
+}
+
 func TestEncoding_IntBlock_Basic(t *testing.T) {
 	valueCount := 1000
 	times := getTimes(valueCount, 60, time.Second)
