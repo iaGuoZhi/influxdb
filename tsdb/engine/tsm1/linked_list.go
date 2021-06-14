@@ -2,12 +2,12 @@ package tsm1
 
 import "fmt"
 
-const expiry = uint32(32)
+const expiry = uint64(32)
 
 type record struct {
-	value   uint64
-	ttl uint32
-	next   *record
+	value   float64
+	index   uint64
+	next    *record
 }
 
 type list struct {
@@ -18,10 +18,10 @@ func createList() *list {
 	return &list{}
 }
 
-func (p *list) addRecord(value uint64, ttl uint32) error {
+func (p *list) addRecord(value float64, index uint64) error {
 	s := &record{
 		value:   value,
-		ttl:   ttl,
+		index:   index,
 	}
 	if p.head != nil {
 		s.next = p.head
@@ -31,8 +31,8 @@ func (p *list) addRecord(value uint64, ttl uint32) error {
 	return nil
 }
 
-func (r *record) nextRecord(ttl uint32) *record {
-	if r.next != nil && (ttl - r.next.ttl <= 32) {
+func (r *record) nextRecord(index uint64, size uint64) *record {
+	if r.next != nil && (index - r.next.index < size) {
 		return r.next
 	}
 	return nil

@@ -18,13 +18,13 @@ func TestListInsertion(t *testing.T) {
 	myList.addRecord(2, 4)
 
 	first := myList.head
-	assert.Equal(t, first.value, uint64(2), "The two values should be the same.")
+	assert.Equal(t, first.value, float64(2), "The two values should be the same.")
 	second := first.next
-	assert.Equal(t, second.value, uint64(6), "The two values should be the same.")
+	assert.Equal(t, second.value, float64(6), "The two values should be the same.")
 	third := second.next
-	assert.Equal(t, third.value, uint64(3), "The two values should be the same.")
+	assert.Equal(t, third.value, float64(3), "The two values should be the same.")
 	fourth := third.next
-	assert.Equal(t, fourth.value, uint64(5), "The two values should be the same.")
+	assert.Equal(t, fourth.value, float64(5), "The two values should be the same.")
 }
 
 
@@ -40,11 +40,11 @@ func TestListNextRecordTtl(t *testing.T) {
 	myList.addRecord(2, 34)
 
 	first := myList.head
-	assert.Equal(t, first.value, uint64(2), "The two values should be the same.")
-	second := first.nextRecord(34)
-	assert.Equal(t, second.value, uint64(6), "The two values should be the same.")
-	third := second.nextRecord(34)
-	assert.Equal(t, third.value, uint64(3), "The two values should be the same.")
-	fourth := third.nextRecord(34)
+	assert.Equal(t, first.value, float64(2), "The two values should be the same.")
+	second := first.nextRecord(34, 32)
+	assert.Equal(t, second.value, float64(6), "The two values should be the same.")
+	third := second.nextRecord(34, 32)
+	assert.Equal(t, third.value, float64(3), "The two values should be the same.")
+	fourth := third.nextRecord(34, 32)
 	assert.Equal(t, fourth, (*record)(nil), "No record should be returned.")
 }

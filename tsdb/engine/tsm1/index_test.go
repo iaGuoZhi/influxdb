@@ -7,22 +7,20 @@ import (
 
 func TestIndexInsertion(t *testing.T) {
 	myIndex := createIndex()
-	myIndex.addRecord(1, 5, 1)
-	myIndex.addRecord(1, 3, 2)
-	myIndex.addRecord(2, 6, 3)
-	myIndex.addRecord(2, 2, 4)
+	myIndex.addRecord(5.123456, 1)
+	myIndex.addRecord(6.123456, 2)
+	myIndex.addRecord(2.654321, 3)
+	myIndex.addRecord(2.654321, 4)
 
-	firstList := myIndex.get(1)
-	first := firstList.head
-	assert.Equal(t, first.value, uint64(3), "The two values should be the same.")
-	second := first.next
-	assert.Equal(t, second.value, uint64(5), "The two values should be the same.")
-	secondList := myIndex.get(2)
-	third := secondList.head
-	assert.Equal(t, third.value, uint64(2), "The two values should be the same.")
-	fourth := third.next
-	assert.Equal(t, fourth.value, uint64(6), "The two values should be the same.")
+	first := myIndex.get(5.123456, 5, 32)
+	assert.Equal(t, first.value, 6.123456, "The two values should be the same.")
+	second := first.nextRecord(5, 32)
+	assert.Equal(t, second.value, 5.123456, "The two values should be the same.")
+	third := myIndex.get(2.654321, 5, 32)
+	assert.Equal(t, third.value, 2.654321, "The two values should be the same.")
+	fourth := third.nextRecord(5, 32)
+	assert.Equal(t, fourth.value, 2.654321, "The two values should be the same.")
 
-	notExisting := myIndex.get(3)
+	notExisting := myIndex.get(3, 5, 32)
 	assert.Equal(t, notExisting, (*list)(nil), "No list should be returned.")
 }

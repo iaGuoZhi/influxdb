@@ -30,6 +30,7 @@ const uvnan = 0x7FF8000000000001
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
 	val [previousValues]float64
+	//i *index
 	err error
 
 	leading  uint64
@@ -40,7 +41,8 @@ type FloatEncoder struct {
 
 	first    bool
 	finished bool
-	current uint64
+	current  uint64
+	//index      uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -48,6 +50,7 @@ func NewFloatEncoder() *FloatEncoder {
 	s := FloatEncoder{
 		first:   true,
 		leading: ^uint64(0),
+		//i:       createIndex(),
 	}
 
 	s.bw = bitstream.NewWriter(&s.buf)
@@ -61,6 +64,7 @@ func (s *FloatEncoder) Reset() {
 	for i := 0; i < len(s.val); i++ {
 		s.val[0] = 0
 	}
+	//s.i = createIndex()
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
@@ -99,6 +103,7 @@ func (s *FloatEncoder) Write(v float64) {
 	if s.first {
 		// first point
 		s.val[s.current] = v
+		//s.i.addRecord(v, s.index)
 		s.first = false
 		fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
@@ -108,6 +113,22 @@ func (s *FloatEncoder) Write(v float64) {
 	maxTrailingBits := uint64(0)
 	previousIndex := s.current
 	var vDelta uint64
+
+	/*record := s.i.get(v, s.index, previousValues)
+	for record != nil {
+		iVDelta := math.Float64bits(v) ^ math.Float64bits(record.value)
+		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
+		fmt.Printf("Checking Index: trailing: %d, %064b\n", trailingBits, iVDelta)
+		if trailingBits >= maxTrailingBits {
+			//previousIndex = record.index
+			//maxTrailingBits = trailingBits
+			//vDelta = iVDelta
+		}
+		if trailingBits == 64 {
+			break
+		}
+		record = record.nextRecord(s.index, previousValues)
+	}*/
 	for i := uint64(0); i < previousValues; i++ {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
 		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
@@ -166,6 +187,8 @@ func (s *FloatEncoder) Write(v float64) {
 
 	s.current = (s.current + 1 ) % previousValues
 	s.val[s.current] = v
+	//s.index = s.current + 1
+	//s.i.addRecord(v, s.index)
 }
 
 // Write2 encodes v to the underlying buffer.
