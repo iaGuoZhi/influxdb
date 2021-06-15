@@ -2,8 +2,6 @@ package tsm1
 
 import "fmt"
 
-const expiry = uint64(32)
-
 type record struct {
 	value   float64
 	index   uint64

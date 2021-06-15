@@ -22,7 +22,8 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 4
+const previousValues = 32
+var previousValuesLog2 =  int(math.Log2(previousValues))
 
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
@@ -30,7 +31,7 @@ const uvnan = 0x7FF8000000000001
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
 	val [previousValues]float64
-	//i *index
+	i *index
 	err error
 
 	leading  uint64
@@ -42,7 +43,7 @@ type FloatEncoder struct {
 	first    bool
 	finished bool
 	current  uint64
-	//index      uint64
+	index      uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -50,7 +51,7 @@ func NewFloatEncoder() *FloatEncoder {
 	s := FloatEncoder{
 		first:   true,
 		leading: ^uint64(0),
-		//i:       createIndex(),
+		i:       createIndex(),
 	}
 
 	s.bw = bitstream.NewWriter(&s.buf)
@@ -61,10 +62,10 @@ func NewFloatEncoder() *FloatEncoder {
 
 // Reset sets the encoder back to its initial state.
 func (s *FloatEncoder) Reset() {
-	for i := 0; i < len(s.val); i++ {
-		s.val[0] = 0
+	for i := 0; i < previousValues; i++ {
+		s.val[i] = 0
 	}
-	//s.i = createIndex()
+	s.i = createIndex()
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
@@ -103,7 +104,7 @@ func (s *FloatEncoder) Write(v float64) {
 	if s.first {
 		// first point
 		s.val[s.current] = v
-		//s.i.addRecord(v, s.index)
+		s.i.addRecord(v, s.index)
 		s.first = false
 		fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
@@ -111,40 +112,49 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 
 	maxTrailingBits := uint64(0)
-	previousIndex := s.current
+	previousIndex := uint64(previousValues)
 	var vDelta uint64
 
-	/*record := s.i.get(v, s.index, previousValues)
+	record := s.i.get(v, s.index, previousValues)
 	for record != nil {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(record.value)
 		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
-		fmt.Printf("Checking Index: trailing: %d, %064b\n", trailingBits, iVDelta)
-		if trailingBits >= maxTrailingBits {
-			//previousIndex = record.index
-			//maxTrailingBits = trailingBits
-			//vDelta = iVDelta
-		}
-		if trailingBits == 64 {
-			break
-		}
-		record = record.nextRecord(s.index, previousValues)
-	}*/
-	for i := uint64(0); i < previousValues; i++ {
-		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
-		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
-		fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
-		if trailingBits >= maxTrailingBits {
-			previousIndex = i
+		fmt.Printf("Checking Index: %d trailing: %d, %064b\n", record.index, trailingBits, iVDelta)
+		if trailingBits > maxTrailingBits {
+			previousIndex = record.index % previousValues
 			maxTrailingBits = trailingBits
 			vDelta = iVDelta
 		}
 		if trailingBits == 64 {
 			break
 		}
+		record = record.nextRecord(s.index, previousValues)
+	}
+	if previousIndex == previousValues {
+		fmt.Printf("Did not found, setting\n")
+		previousIndex = s.index % previousValues
+		vDelta = math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
+	}
+	fmt.Printf("New: %d, trailing: %d, vDelta %064b\n", previousIndex, maxTrailingBits, vDelta)
+
+	/*maxTrailingBits = uint64(0)
+	previousIndex = s.current
+	for i := uint64(0); i < previousValues; i++ {
+		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
+		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
+		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
+		if trailingBits > maxTrailingBits {
+			previousIndex = i
+			maxTrailingBits = trailingBits
+			vDelta = iVDelta
+			if vDelta == 0 {
+				break
+			}
+		}
 	}
 
-	fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
-	s.bw.WriteBits(previousIndex, 2)
+	fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)*/
+	s.bw.WriteBits(previousIndex, previousValuesLog2)
 
 	if vDelta == 0 {
 		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
@@ -187,8 +197,9 @@ func (s *FloatEncoder) Write(v float64) {
 
 	s.current = (s.current + 1 ) % previousValues
 	s.val[s.current] = v
-	//s.index = s.current + 1
-	//s.i.addRecord(v, s.index)
+	s.index = s.index + 1
+	fmt.Printf("Adding %v with %d\n", v, s.index)
+	s.i.addRecord(v, s.index)
 }
 
 // Write2 encodes v to the underlying buffer.
@@ -253,9 +264,11 @@ func (s *FloatEncoder) Write2(v float64) {
 // FloatDecoder decodes a byte slice into multiple float64 values.
 type FloatDecoder struct {
 	val uint64
+	values [previousValues]uint64
 
 	leading  uint64
 	trailing uint64
+    current uint64
 
 	br BitReader
 	b  []byte
@@ -284,7 +297,12 @@ func (it *FloatDecoder) SetBytes(b []byte) error {
 	}
 
 	// Reset all fields.
+	for i := 0; i < previousValues; i++ {
+		it.values[i] = 0
+	}
 	it.val = v
+	it.current = 0
+	it.values[it.current] = v
 	it.leading = 0
 	it.trailing = 0
 	it.b = b
@@ -304,14 +322,20 @@ func (it *FloatDecoder) Next() bool {
 	if it.first {
 		it.first = false
 		// mark as finished if there were no values.
-		if it.val == uvnan { // IsNaN
+		if it.values[it.current] == uvnan { // IsNaN
 			it.finished = true
 			return false
 		}
-
+		fmt.Printf("First value is ready\n")
 		return true
 	}
 
+	// read index of previous value
+	index, err := it.br.ReadBits(uint(previousValuesLog2))
+	if err != nil {
+		it.err = err
+		return false
+	}
 	// read compressed value
 	var bit bool
 	if it.br.CanReadBitFast() {
@@ -323,7 +347,12 @@ func (it *FloatDecoder) Next() bool {
 		bit = v
 	}
 	if !bit {
+		//fmt.Printf("Same value!\n")
 		// it.val = it.val
+		it.val = it.values[index]
+		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
+		it.current = (it.current + 1) % previousValues
+		it.values[it.current] = it.val
 	} else {
 		var bit bool
 		if it.br.CanReadBitFast() {
@@ -377,14 +406,18 @@ func (it *FloatDecoder) Next() bool {
 			return false
 		}
 
-		vbits := it.val
+		//vbits := it.val
+		vbits := it.values[index]
 		vbits ^= (bits << it.trailing)
 
 		if vbits == uvnan { // IsNaN
 			it.finished = true
 			return false
 		}
+		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
 		it.val = vbits
+		it.current = (it.current + 1) % previousValues
+		it.values[it.current] = vbits
 	}
 
 	return true
