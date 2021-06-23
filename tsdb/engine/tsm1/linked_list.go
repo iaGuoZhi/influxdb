@@ -39,7 +39,7 @@ func (r *record) nextRecord(index uint64, size uint64) *record {
 func (p *list) showAllRecords() error {
 	currentNode := p.head
 	if currentNode == nil {
-		fmt.Println("List is empty.")
+		//fmt.Println("List is empty.")
 		return nil
 	}
 	fmt.Printf("%+v\n", *currentNode)

@@ -44,6 +44,7 @@ type FloatEncoder struct {
 	finished bool
 	current  uint64
 	index      uint64
+	comparisonsCounter  uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -69,6 +70,7 @@ func (s *FloatEncoder) Reset() {
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
+	s.comparisonsCounter = 0
 	s.buf.Reset()
 	s.buf.WriteByte(floatCompressedGorilla << 4)
 
@@ -106,7 +108,7 @@ func (s *FloatEncoder) Write(v float64) {
 		s.val[s.current] = v
 		s.i.addRecord(v, s.index)
 		s.first = false
-		fmt.Printf("Value: %G, writing first as float64\n", s.val)
+		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -117,9 +119,10 @@ func (s *FloatEncoder) Write(v float64) {
 
 	record := s.i.get(v, s.index, previousValues)
 	for record != nil {
+		s.comparisonsCounter++
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(record.value)
 		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
-		fmt.Printf("Checking Index: %d trailing: %d, %064b\n", record.index, trailingBits, iVDelta)
+		//fmt.Printf("Checking Index: %d trailing: %d, %064b\n", record.index, trailingBits, iVDelta)
 		if trailingBits > maxTrailingBits {
 			previousIndex = record.index % previousValues
 			maxTrailingBits = trailingBits
@@ -131,11 +134,11 @@ func (s *FloatEncoder) Write(v float64) {
 		record = record.nextRecord(s.index, previousValues)
 	}
 	if previousIndex == previousValues {
-		fmt.Printf("Did not found, setting\n")
+		//fmt.Printf("Did not found, setting\n")
 		previousIndex = s.index % previousValues
 		vDelta = math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 	}
-	fmt.Printf("New: %d, trailing: %d, vDelta %064b\n", previousIndex, maxTrailingBits, vDelta)
+	//fmt.Printf("New: %d, trailing: %d, vDelta %064b, value: %064b\n", previousIndex, maxTrailingBits, vDelta, math.Float64bits(v))
 
 	/*maxTrailingBits = uint64(0)
 	previousIndex = s.current
@@ -153,7 +156,7 @@ func (s *FloatEncoder) Write(v float64) {
 		}
 	}
 
-	fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)*/
+	//fmt.Printf("Index: %d, trailing: %d, previous: %064b\n", previousIndex, maxTrailingBits, math.Float64bits(s.val[previousIndex]))*/
 	s.bw.WriteBits(previousIndex, previousValuesLog2)
 
 	if vDelta == 0 {
@@ -184,9 +187,9 @@ func (s *FloatEncoder) Write(v float64) {
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(leading / 2, 3)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBit(bitstream.One)
 			s.bw.WriteBits(leading / 2, 3)
 			s.bw.WriteBits(sigbits, 6)
@@ -198,8 +201,9 @@ func (s *FloatEncoder) Write(v float64) {
 	s.current = (s.current + 1 ) % previousValues
 	s.val[s.current] = v
 	s.index = s.index + 1
-	fmt.Printf("Adding %v with %d\n", v, s.index)
+	//fmt.Printf("Adding %v with %d\n", v, s.index)
 	s.i.addRecord(v, s.index)
+	//fmt.Printf("Total comparisons: %d\n", s.comparisonsCounter)
 }
 
 // Write2 encodes v to the underlying buffer.
@@ -213,7 +217,7 @@ func (s *FloatEncoder) Write2(v float64) {
 		// first point
 		s.val[0] = v
 		s.first = false
-		fmt.Printf("Value: %G, writing first as float64\n", s.val)
+		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -221,7 +225,7 @@ func (s *FloatEncoder) Write2(v float64) {
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[0])
 
 	if vDelta == 0 {
-		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBit(bitstream.Zero)
 	} else {
 		s.bw.WriteBit(bitstream.One)
@@ -237,7 +241,7 @@ func (s *FloatEncoder) Write2(v float64) {
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
-			fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
+			//fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
@@ -252,7 +256,7 @@ func (s *FloatEncoder) Write2(v float64) {
 			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 			// adjust it back to 64 on unpacking.
 			sigbits := 64 - leading - trailing
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
