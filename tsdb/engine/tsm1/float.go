@@ -101,7 +101,7 @@ func (s *FloatEncoder) Write(v float64) {
 		// first point
 		s.val[s.current] = v
 		s.first = false
-		fmt.Printf("Value: %G, writing first as float64\n", s.val)
+		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -127,7 +127,7 @@ func (s *FloatEncoder) Write(v float64) {
 	s.bw.WriteBits(previousIndex, previousValuesLog2)
 
 	if vDelta == 0 {
-		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBit(bitstream.Zero)
 	} else {
 		s.bw.WriteBit(bitstream.One)
@@ -154,9 +154,9 @@ func (s *FloatEncoder) Write(v float64) {
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(leading / 2, 3)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBit(bitstream.One)
 			s.bw.WriteBits(leading / 2, 3)
 			s.bw.WriteBits(sigbits, 6)

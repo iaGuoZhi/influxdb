@@ -141,7 +141,7 @@ func TestEncoding_FloatBlock_SlopeFloats(t *testing.T) {
 func TestEncoding_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
 	rand.Seed(23)
 	var firstTimestamp int64 = 1444238178437870000
-	var size = 1000
+	var size = 10000000
 	values := make([]tsm1.Value, size)
 	for i := 0; i < size; i++ {
 		var value float64 = 300 * float64(i) + 20 + float64(rand.Int() % 10) * rand.Float64()
@@ -149,7 +149,7 @@ func TestEncoding_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
 	}
 
 	b, err := tsm1.Values(values).Encode(nil)
-	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
+	//fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
