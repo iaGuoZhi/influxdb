@@ -22,7 +22,7 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 32
+const previousValues = 16
 var previousValuesLog2 =  int(math.Log2(previousValues))
 
 // uvnan is the constant returned from math.NaN().
@@ -139,28 +139,10 @@ func (s *FloatEncoder) Write(v float64) {
 		vDelta = math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 	}
 	//fmt.Printf("New: %d, trailing: %d, vDelta %064b, value: %064b\n", previousIndex, maxTrailingBits, vDelta, math.Float64bits(v))
-
-	/*maxTrailingBits = uint64(0)
-	previousIndex = s.current
-	for i := uint64(0); i < previousValues; i++ {
-		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
-		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
-		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
-		if trailingBits > maxTrailingBits {
-			previousIndex = i
-			maxTrailingBits = trailingBits
-			vDelta = iVDelta
-			if vDelta == 0 {
-				break
-			}
-		}
-	}
-
-	//fmt.Printf("Index: %d, trailing: %d, previous: %064b\n", previousIndex, maxTrailingBits, math.Float64bits(s.val[previousIndex]))*/
 	s.bw.WriteBits(previousIndex, previousValuesLog2)
 
 	if vDelta == 0 {
-		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBit(bitstream.Zero)
 	} else {
 		s.bw.WriteBit(bitstream.One)
