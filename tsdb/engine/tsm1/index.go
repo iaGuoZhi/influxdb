@@ -1,39 +1,40 @@
 package tsm1
 
 import (
-	"container/list"
 	"math"
 	"math/bits"
 )
 
 type index struct {
 	setLsb uint64
-	array [32]*list.List
-	m map[uint64]*myList
+	//array [32]*list.List
+	array [32]*myList
 }
 
 func createIndex() *index {
 	return &index{
 		setLsb: uint64(0x1f),
-		//m:      make(map[uint64] *list),
 	}
 }
 
 func (i *index) addRecord(value float64, index uint64) {
 	key := math.Float64bits(value) & i.setLsb
 	if i.array[key] == nil {
-		newList := list.New()
+		newList := createList()
+		newList.addRecord(value, index)
+		/*newList := list.New()
 		newList.PushFront(&record{
 			value:   value,
 			index:   index,
-		})
+		})*/
 		i.array[key] = newList
 	} else {
 		oldList := i.array[key]
-		oldList.PushFront(&record{
+		oldList.addRecord(value, index)
+		/*oldList.PushFront(&record{
 			value:   value,
 			index:   index,
-		})
+		})*/
 		i.array[key] = oldList
 	}
 	//fmt.Printf("key: %v  %v  %v\n", key, i.setLsb, math.Float64bits(value))
@@ -71,7 +72,24 @@ func (i *index) getAll(value float64, index uint64, size uint64) uint64 {
 	if l == nil {
 		return  previousIndex
 	}
-	for e := l.Front(); e != nil; e = e.Next() {
+
+	record := l.head
+	for record != nil {
+		iVDelta := math.Float64bits(value) ^ math.Float64bits(record.value)
+		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
+		//fmt.Printf("Checking Index: %d trailing: %d, %064b\n", record.index, trailingBits, iVDelta)
+		if trailingBits > maxTrailingBits {
+			previousIndex = record.index % size
+			maxTrailingBits = trailingBits
+		}
+		if trailingBits == 64 {
+			break
+		}
+		record = record.nextRecord(index, size)
+	}
+
+
+	/*for e := l.Front(); e != nil; e = e.Next() {
 		if index - e.Value.(*record).index >= size {
 			break
 		}
@@ -85,6 +103,7 @@ func (i *index) getAll(value float64, index uint64, size uint64) uint64 {
 		if trailingBits == 64 {
 			break
 		}
-	}
+	}*/
+
 	return previousIndex
 }
