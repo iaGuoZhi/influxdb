@@ -8,15 +8,15 @@ type record struct {
 	next    *record
 }
 
-type list struct {
+type myList struct {
 	head       *record
 }
 
-func createList() *list {
-	return &list{}
+func createList() *myList {
+	return &myList{}
 }
 
-func (p *list) addRecord(value float64, index uint64) error {
+func (p *myList) addRecord(value float64, index uint64) error {
 	s := &record{
 		value:   value,
 		index:   index,
@@ -36,7 +36,7 @@ func (r *record) nextRecord(index uint64, size uint64) *record {
 	return nil
 }
 
-func (p *list) showAllRecords() error {
+func (p *myList) showAllRecords() error {
 	currentNode := p.head
 	if currentNode == nil {
 		//fmt.Println("List is empty.")

@@ -22,7 +22,7 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 16
+const previousValues = 32
 var previousValuesLog2 =  int(math.Log2(previousValues))
 
 // uvnan is the constant returned from math.NaN().
@@ -112,8 +112,8 @@ func (s *FloatEncoder) Write(v float64) {
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
-
-	maxTrailingBits := uint64(0)
+	previousIndex := s.i.getAll(v, s.index, previousValues)
+	/*maxTrailingBits := uint64(0)
 	previousIndex := uint64(previousValues)
 	var vDelta uint64
 
@@ -132,12 +132,15 @@ func (s *FloatEncoder) Write(v float64) {
 			break
 		}
 		record = record.nextRecord(s.index, previousValues)
-	}
+	}*/
 	if previousIndex == previousValues {
 		//fmt.Printf("Did not found, setting\n")
 		previousIndex = s.index % previousValues
-		vDelta = math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
+		//vDelta = math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 	}
+
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
+
 	//fmt.Printf("New: %d, trailing: %d, vDelta %064b, value: %064b\n", previousIndex, maxTrailingBits, vDelta, math.Float64bits(v))
 	s.bw.WriteBits(previousIndex, previousValuesLog2)
 

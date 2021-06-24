@@ -11,8 +11,16 @@ func TestIndexInsertion(t *testing.T) {
 	myIndex.addRecord(6.123456, 2)
 	myIndex.addRecord(2.654321, 3)
 	myIndex.addRecord(2.654321, 4)
-
-	first := myIndex.get(5.123456, 5, 32)
+	size:= uint64(32)
+	previousIndex := myIndex.getAll(5.123456, 5, size)
+	assert.Equal(t, previousIndex, uint64(1), "The two values should be the same.")
+	previousIndex = myIndex.getAll(6.123456, 5, size)
+	assert.Equal(t, previousIndex, uint64(2), "The two values should be the same.")
+	previousIndex = myIndex.getAll(2.654321, 5, size)
+	assert.Equal(t, previousIndex, uint64(4), "The two values should be the same.")
+	previousIndex = myIndex.getAll(2.654321, 5, size)
+	assert.Equal(t, previousIndex, uint64(4), "The two values should be the same.")
+	/*first := myIndex.get(5.123456, 5, 32)
 	assert.Equal(t, first.value, 6.123456, "The two values should be the same.")
 	second := first.nextRecord(5, 32)
 	assert.Equal(t, second.value, 5.123456, "The two values should be the same.")
@@ -22,5 +30,5 @@ func TestIndexInsertion(t *testing.T) {
 	assert.Equal(t, fourth.value, 2.654321, "The two values should be the same.")
 
 	notExisting := myIndex.get(3, 5, 32)
-	assert.Equal(t, notExisting, (*list)(nil), "No list should be returned.")
+	assert.Equal(t, notExisting, (*myList)(nil), "No list should be returned.")*/
 }
