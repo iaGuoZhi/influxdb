@@ -92,6 +92,8 @@ func (s *FloatEncoder) Flush() {
 
 // Write encodes v to the underlying buffer.
 func (s *FloatEncoder) Write(v float64) {
+	//key := math.Float64bits(v) & uint64(0x1f)
+	//_ = key
 	// Only allow NaN as a sentinel value
 	if math.IsNaN(v) && !s.finished {
 		s.err = fmt.Errorf("unsupported value: NaN")
@@ -106,9 +108,10 @@ func (s *FloatEncoder) Write(v float64) {
 		return
 	}
 
-	maxTrailingBits := uint64(0)
 	previousIndex := s.current
+	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 	var vDelta uint64
+	maxTrailingBits := uint64(0)
 	for i := uint64(0); i < previousValues; i++ {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
 		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
@@ -180,7 +183,7 @@ func (s *FloatEncoder) Write2(v float64) {
 		// first point
 		s.val[0] = v
 		s.first = false
-		fmt.Printf("Value: %G, writing first as float64\n", s.val)
+		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -188,7 +191,7 @@ func (s *FloatEncoder) Write2(v float64) {
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[0])
 
 	if vDelta == 0 {
-		fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBit(bitstream.Zero)
 	} else {
 		s.bw.WriteBit(bitstream.One)
@@ -204,7 +207,7 @@ func (s *FloatEncoder) Write2(v float64) {
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
-			fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
+			//fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
@@ -219,7 +222,7 @@ func (s *FloatEncoder) Write2(v float64) {
 			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 			// adjust it back to 64 on unpacking.
 			sigbits := 64 - leading - trailing
-			fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
