@@ -361,7 +361,11 @@ func encodeFloatBlock(buf []byte, values []Value) ([]byte, error) {
 	// frame-or-reference and run length encoding.
 	tsenc := getTimeEncoder(len(values))
 
+	start := time.Now()
 	b, err := encodeFloatBlockUsing(buf, values, tsenc, venc)
+
+	elapsed := time.Since(start)
+	fmt.Printf("Execution took %s\n", elapsed)
 
 	putTimeEncoder(tsenc)
 	putFloatEncoder(venc)
