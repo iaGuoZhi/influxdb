@@ -112,11 +112,11 @@ func (s *FloatEncoder) Write(v float64) {
 	previousIndex := s.current
 	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 	var vDelta uint64
-	maxTrailingBits := uint64(0)
+	maxTrailingBits := 0
 	for i := uint64(0); i < previousValuesSize; i++ {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.previousValues[i])
 		_ = iVDelta
-		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
+		trailingBits := bits.TrailingZeros64(iVDelta)
 		_ = trailingBits
 		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
 		if trailingBits >= maxTrailingBits {
@@ -156,7 +156,7 @@ func (s *FloatEncoder) Write(v float64) {
 		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 		// adjust it back to 64 on unpacking.
 		sigbits := 64 - 2 * (leading / 2) - trailing
-		if (trailing < 6) {
+		if trailing < 6 {
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(leading / 2, 3)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
