@@ -61,6 +61,9 @@ func NewFloatEncoder() *FloatEncoder {
 // Reset sets the encoder back to its initial state.
 func (s *FloatEncoder) Reset() {
 	s.val = 0
+	for i := 0; i < previousValuesSize; i++ {
+		s.previousValues[i] = 0
+	}
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
