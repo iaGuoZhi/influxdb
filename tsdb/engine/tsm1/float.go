@@ -127,13 +127,14 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 
 	//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
-	s.bw.WriteBits(previousIndex, previousValuesLog2)
+
 
 	if vDelta == 0 {
 		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBit(bitstream.Zero)
+		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
+		//s.bw.WriteBit(bitstream.Zero)
 	} else {
-		s.bw.WriteBit(bitstream.One)
+		//s.bw.WriteBit(bitstream.One)
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
@@ -154,14 +155,16 @@ func (s *FloatEncoder) Write(v float64) {
 		// adjust it back to 64 on unpacking.
 		sigbits := 64 - 2 * (leading / 2) - trailing
 		if trailing < 6 {
-			s.bw.WriteBit(bitstream.Zero)
-			s.bw.WriteBits(leading / 2, 3)
+			//s.bw.WriteBit(bitstream.Zero)
+			//s.bw.WriteBits(previousIndex, previousValuesLog2)
+			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			s.bw.WriteBit(bitstream.One)
-			s.bw.WriteBits(leading / 2, 3)
+			//s.bw.WriteBit(bitstream.One)
+			//s.bw.WriteBits(previousIndex, previousValuesLog2)
+			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
