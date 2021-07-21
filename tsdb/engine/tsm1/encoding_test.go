@@ -1,9 +1,9 @@
 package tsm1_test
 
 import (
-	"encoding/binary"
 	"bufio"
 	"compress/gzip"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/rand"
