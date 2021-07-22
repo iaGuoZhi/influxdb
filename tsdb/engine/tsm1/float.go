@@ -115,9 +115,11 @@ func (s *FloatEncoder) Write(v float64) {
 		return
 	}
 	previousIndex := s.i.getAll(v, s.index, previousValues)
-	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
-	fmt.Printf("Index: %d\n", previousIndex)
+	if previousIndex == previousValues {
+		previousIndex = s.index % previousValues
+    }
 
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 
 	if vDelta == 0 {
 		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
