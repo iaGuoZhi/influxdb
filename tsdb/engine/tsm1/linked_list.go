@@ -16,7 +16,7 @@ func createList() *myList {
 	return &myList{}
 }
 
-func (p *myList) addRecord(value float64, index uint64) error {
+func (p *myList) addRecord(value float64, index uint64) {
 	s := &record{
 		value:   value,
 		index:   index,
@@ -26,7 +26,6 @@ func (p *myList) addRecord(value float64, index uint64) error {
 		p.head = s
 	}
 	p.head = s
-	return nil
 }
 
 func (r *record) nextRecord(index uint64, size uint64) *record {
