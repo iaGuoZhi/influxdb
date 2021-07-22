@@ -22,7 +22,7 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 32
+const previousValues = 16
 var previousValuesLog2 =  int(math.Log2(previousValues))
 
 // uvnan is the constant returned from math.NaN().

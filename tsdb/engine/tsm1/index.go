@@ -5,18 +5,19 @@ import (
 	"math/bits"
 )
 
+const positions = previousValues / 4
 type index struct {
 	setLsb uint64
 	//array [32]*list.List
-	array [32]*myList
-	values [32][32]float64
-	indices [32][32]uint64
-	pointers [32]uint8
+	array [previousValues]*myList
+	values [previousValues][positions]float64
+	indices [previousValues][positions]uint64
+	pointers [previousValues]uint8
 }
 
 func createIndex() *index {
 	return &index{
-		setLsb: uint64(0x1f),
+		setLsb: uint64(previousValues - 1),
 	}
 }
 
@@ -25,7 +26,7 @@ func (i *index) addRecord(value float64, index uint64) {
 	i.values[key][i.pointers[key]] = value
 	i.indices[key][i.pointers[key]] = index
 	//fmt.Printf("Adding %v with index %v to key %v\n", value, index, key)
-	i.pointers[key] = (i.pointers[key] + 1) % 32
+	i.pointers[key] = (i.pointers[key] + 1) % positions
 	/*if i.array[key] == nil {
 		newList := createList()
 		newList.addRecord(value, index)
@@ -41,12 +42,12 @@ func (i *index) getAll(value float64, index uint64, size uint64) uint64 {
 	maxTrailingBits := uint64(0)
 	previousIndex := uint64(size)
 	key := math.Float64bits(value) & i.setLsb
-	pointer := (i.pointers[key] - 1) % 32
+	pointer := (i.pointers[key] - 1) % positions
 	currIndex := i.indices[key][pointer]
 	currValue := i.values[key][pointer]
 	elementsChecked := 0
 	//fmt.Printf("Checking: %v = %v = %v\n", currIndex, currValue, index)
-	for index - currIndex < size && elementsChecked < 32 {
+	for index - currIndex < size && elementsChecked < positions {
 		//fmt.Printf("Checking: %v = %v\n", currIndex, currValue)
 		iVDelta := math.Float64bits(value) ^ math.Float64bits(currValue)
 		trailingBits := uint64(bits.TrailingZeros64(iVDelta))
@@ -55,7 +56,7 @@ func (i *index) getAll(value float64, index uint64, size uint64) uint64 {
 			previousIndex = currIndex % size
 			maxTrailingBits = trailingBits
 		}
-		pointer = (pointer -1) % 32
+		pointer = (pointer -1) % positions
 		currIndex = i.indices[key][pointer]
 		currValue = i.values[key][pointer]
 		elementsChecked++
