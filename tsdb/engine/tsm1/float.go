@@ -31,6 +31,7 @@ const uvnan = 0x7FF8000000000001
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
 	val [previousValues]float64
+	i *index
 	err error
 
 	leading  uint64
@@ -42,6 +43,8 @@ type FloatEncoder struct {
 	first    bool
 	finished bool
 	current  uint64
+	index      uint64
+	comparisonsCounter  uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -49,6 +52,7 @@ func NewFloatEncoder() *FloatEncoder {
 	s := FloatEncoder{
 		first:   true,
 		leading: ^uint64(0),
+		i:       createIndex(),
 	}
 
 	s.bw = bitstream.NewWriter(&s.buf)
@@ -62,9 +66,11 @@ func (s *FloatEncoder) Reset() {
 	for i := 0; i < previousValues; i++ {
 		s.val[i] = 0
 	}
+	s.i = createIndex()
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
+	s.comparisonsCounter = 0
 	s.buf.Reset()
 	s.buf.WriteByte(floatCompressedGorilla << 4)
 
@@ -102,11 +108,16 @@ func (s *FloatEncoder) Write(v float64) {
 	if s.first {
 		// first point
 		s.val[s.current] = v
+		s.i.addRecord(v, s.index)
 		s.first = false
 		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
+	previousIndex := s.i.getAll(v, s.index, previousValues)
+	/*maxTrailingBits := uint64(0)
+	previousIndex := uint64(previousValues)
+	var vDelta uint64
 
 	previousIndex := s.current
 	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
@@ -123,56 +134,60 @@ func (s *FloatEncoder) Write(v float64) {
 			/*if vDelta == 0 {
 				break
 			}*/
-		}
-	}
+}
+}*/
 
-	//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
-
-
-	if vDelta == 0 {
-		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
-		//s.bw.WriteBit(bitstream.Zero)
-	} else {
-		//s.bw.WriteBit(bitstream.One)
-
-		leading := uint64(bits.LeadingZeros64(vDelta))
-		trailing := uint64(bits.TrailingZeros64(vDelta))
-
-		// Clamp number of leading zeros to avoid overflow when encoding
-		leading &= 0x1F
-		if leading >= 15 {
-			leading = 14
-		}
+//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
 
 
-		s.leading, s.trailing = leading, trailing
+if vDelta == 0 {
+//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
+s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
+//s.bw.WriteBit(bitstream.Zero)
+} else {
+//s.bw.WriteBit(bitstream.One)
 
-		// Note that if leading == trailing == 0, then sigbits == 64.  But that
-		// value doesn't actually fit into the 6 bits we have.
-		// Luckily, we never need to encode 0 significant bits, since that would
-		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-		// adjust it back to 64 on unpacking.
-		sigbits := 64 - 2 * (leading / 2) - trailing
-		if trailing < 6 {
-			//s.bw.WriteBit(bitstream.Zero)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
-			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
-		} else {
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			//s.bw.WriteBit(bitstream.One)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
-			s.bw.WriteBits(sigbits, 6)
-			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
-		}
+leading := uint64(bits.LeadingZeros64(vDelta))
+trailing := uint64(bits.TrailingZeros64(vDelta))
 
-	}
+// Clamp number of leading zeros to avoid overflow when encoding
+leading &= 0x1F
+if leading >= 15 {
+leading = 14
+}
 
-	s.current = (s.current + 1 ) % previousValues
-	s.val[s.current] = v
+
+s.leading, s.trailing = leading, trailing
+
+// Note that if leading == trailing == 0, then sigbits == 64.  But that
+// value doesn't actually fit into the 6 bits we have.
+// Luckily, we never need to encode 0 significant bits, since that would
+// put us in the other case (vdelta == 0).  So instead we write out a 0 and
+// adjust it back to 64 on unpacking.
+sigbits := 64 - 2 * (leading / 2) - trailing
+if trailing < 6 {
+//s.bw.WriteBit(bitstream.Zero)
+//s.bw.WriteBits(previousIndex, previousValuesLog2)
+s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
+s.bw.WriteBits(vDelta, int(sigbits + trailing))
+//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
+} else {
+//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
+//s.bw.WriteBit(bitstream.One)
+//s.bw.WriteBits(previousIndex, previousValuesLog2)
+s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
+s.bw.WriteBits(sigbits, 6)
+s.bw.WriteBits(vDelta>>trailing, int(sigbits))
+}
+
+}
+
+s.current = (s.current + 1 ) % previousValues
+s.val[s.current] = v
+s.index = s.index + 1
+//fmt.Printf("Adding %v with %d\n", v, s.index)
+s.i.addRecord(v, s.index)
+//fmt.Printf("Total comparisons: %d\n", s.comparisonsCounter)
 }
 
 // Write2 encodes v to the underlying buffer.
@@ -241,7 +256,7 @@ type FloatDecoder struct {
 
 	leading  uint64
 	trailing uint64
-    current uint64
+	current uint64
 
 	br BitReader
 	b  []byte
