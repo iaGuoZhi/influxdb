@@ -9,15 +9,15 @@ const positions = previousValues / 4
 type index struct {
 	setLsb uint64
 	//array [32]*list.List
-	array [previousValues]*myList
-	values [previousValues][positions]float64
-	indices [previousValues][positions]uint64
-	pointers [previousValues]uint8
+	array [32]*myList
+	values [32][positions]float64
+	indices [32][positions]uint64
+	pointers [32]uint8
 }
 
 func createIndex() *index {
 	return &index{
-		setLsb: uint64(previousValues - 1),
+		setLsb: uint64(31),
 	}
 }
 
