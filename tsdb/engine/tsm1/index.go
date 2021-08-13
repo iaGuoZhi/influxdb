@@ -5,7 +5,7 @@ import (
 	"math/bits"
 )
 
-const positions = previousValues / 4
+const positions = previousValues / 16
 type index struct {
 	setLsb uint64
 	//array [32]*list.List

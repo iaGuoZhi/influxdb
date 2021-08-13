@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"os"
 
 	"github.com/dgryski/go-bitstream"
 )
@@ -22,7 +23,7 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 32
+const previousValues = 128
 var previousValuesLog2 =  int(math.Log2(previousValues))
 
 // uvnan is the constant returned from math.NaN().
@@ -53,6 +54,7 @@ func NewFloatEncoder() *FloatEncoder {
 		first:   true,
 		leading: ^uint64(0),
 		i:       createIndex(),
+
 	}
 
 	s.bw = bitstream.NewWriter(&s.buf)
@@ -121,9 +123,16 @@ func (s *FloatEncoder) Write(v float64) {
 
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 
+	f, err := os.OpenFile("/home/panagiotis/log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
 	if vDelta == 0 {
 		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
+		f.WriteString(fmt.Sprintf("0,%d,%d\n", previousValuesLog2 + 1, 0))
 		//s.bw.WriteBit(bitstream.Zero)
 	} else {
 		//s.bw.WriteBit(bitstream.One)
@@ -136,7 +145,6 @@ func (s *FloatEncoder) Write(v float64) {
 		if leading >= 15 {
 			leading = 14
 		}
-
 
 		s.leading, s.trailing = leading, trailing
 
@@ -151,14 +159,19 @@ func (s *FloatEncoder) Write(v float64) {
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
 			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
+			f.WriteString(fmt.Sprintf("1,%d,%d\n", previousValuesLog2 + 5, int(sigbits + trailing)))
+			//fmt.Printf("%d, %d\n", previousValuesLog2 + 5, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			//s.bw.WriteBit(bitstream.One)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
-			s.bw.WriteBits(sigbits, 6)
+			s.bw.WriteBits((previousIndex * 32 + 16 + 8 + leading / 2) * 64 + sigbits, previousValuesLog2 + 6 + 5)
+			//s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
+			f.WriteString(fmt.Sprintf("2,%d,%d\n", previousValuesLog2 + 6 + 5, int(sigbits)))
+
+			//fmt.Printf("%d, %d, %d\n", previousValuesLog2 + 5, 6, int(sigbits))
 		}
 
 	}
