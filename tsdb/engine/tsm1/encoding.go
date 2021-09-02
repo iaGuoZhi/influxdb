@@ -3,6 +3,7 @@ package tsm1
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"runtime"
 	"time"
 
@@ -372,6 +373,26 @@ func encodeFloatBlock(buf []byte, values []Value) ([]byte, error) {
 func encodeFloatBlockUsing(buf []byte, values []Value, tsenc TimeEncoder, venc *FloatEncoder) ([]byte, error) {
 	tsenc.Reset()
 	venc.Reset()
+
+	max_exponent := 0
+	for _, v := range values {
+		value := v.(FloatValue).value
+		exponent := int((math.Float64bits(value) >> 52) & (2047)) - 1023
+		if (exponent > max_exponent) {
+			max_exponent = exponent
+		}
+	}
+	frequency := make(map[uint64]int)
+	for _, v := range values {
+		value := v.(FloatValue).value
+		item := math.Float64bits(value) <<  (12 + max_exponent)
+		if frequency[item] == 0 {
+			frequency[item] = 1
+		} else {
+			frequency[item]++
+		}
+	}
+	fmt.Printf("%d\n", len(frequency))
 
 	for _, v := range values {
 		vv := v.(FloatValue)
