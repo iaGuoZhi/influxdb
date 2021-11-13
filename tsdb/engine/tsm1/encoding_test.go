@@ -1,14 +1,9 @@
 package tsm1_test
 
 import (
-	"bufio"
-	"compress/gzip"
 	"fmt"
 	"math/rand"
-	"os"
 	"reflect"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
