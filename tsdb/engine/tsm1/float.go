@@ -279,6 +279,103 @@ func (it *FloatDecoder) Next() bool {
 	} else {
 		bit = v
 	}
+	if !bit {
+		it.val = it.val
+	} else {
+		var bit bool
+		if it.br.CanReadBitFast() {
+			bit = it.br.ReadBitFast()
+		} else if v, err := it.br.ReadBit(); err != nil {
+			it.err = err
+			return false
+		} else {
+			bit = v
+		}
+
+		if !bit {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			it.leading = bits * 2
+
+			mbits := 64 - it.leading
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 0
+		} else {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			it.leading = bits * 2
+
+			bits, err = it.br.ReadBits(6)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			mbits := bits
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 64 - it.leading - mbits
+		}
+
+		mbits := uint(64 - it.leading - it.trailing)
+		bits, err := it.br.ReadBits(mbits)
+		if err != nil {
+			it.err = err
+			return false
+		}
+
+		vbits := it.val
+		vbits ^= (bits << it.trailing)
+
+		if vbits == uvnan { // IsNaN
+			it.finished = true
+			return false
+		}
+		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
+		it.val = vbits
+	}
+
+	return true
+}
+
+// Next2 returns true if there are remaining values to read.
+func (it *FloatDecoder) Next2() bool {
+	if it.err != nil || it.finished {
+		return false
+	}
+
+	if it.first {
+		it.first = false
+
+		// mark as finished if there were no values.
+		if it.val == uvnan { // IsNaN
+			it.finished = true
+			return false
+		}
+
+		return true
+	}
+
+	// read compressed value
+	var bit bool
+	if it.br.CanReadBitFast() {
+		bit = it.br.ReadBitFast()
+	} else if v, err := it.br.ReadBit(); err != nil {
+		it.err = err
+		return false
+	} else {
+		bit = v
+	}
 
 	if !bit {
 		// it.val = it.val
