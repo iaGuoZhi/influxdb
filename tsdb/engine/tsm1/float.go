@@ -22,15 +22,12 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
-const previousValues = 8
-var previousValuesLog2 =  int(math.Log2(previousValues))
-
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
 
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
-	val [previousValues]float64
+	val float64
 	err error
 
 	leading  uint64
@@ -41,7 +38,6 @@ type FloatEncoder struct {
 
 	first    bool
 	finished bool
-	current  uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -59,9 +55,7 @@ func NewFloatEncoder() *FloatEncoder {
 
 // Reset sets the encoder back to its initial state.
 func (s *FloatEncoder) Reset() {
-	for i := 0; i < previousValues; i++ {
-		s.val[i] = 0
-	}
+	s.val = 0
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
@@ -101,40 +95,18 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 	if s.first {
 		// first point
-		s.val[s.current] = v
+		s.val = v
 		s.first = false
 		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
 
-	previousIndex := s.current
-	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
-	var vDelta uint64
-	maxTrailingBits := 0
-	for i := uint64(0); i < previousValues; i++ {
-		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
-		trailingBits := bits.TrailingZeros64(iVDelta)
-		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
-		if trailingBits >= maxTrailingBits {
-			previousIndex = i
-			maxTrailingBits = trailingBits
-			vDelta = iVDelta
-			/*if vDelta == 0 {
-				break
-			}*/
-		}
-	}
-
-	//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
-
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
 
 	if vDelta == 0 {
-		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
-		//s.bw.WriteBit(bitstream.Zero)
+		s.bw.WriteBit(bitstream.Zero)
 	} else {
-		//s.bw.WriteBit(bitstream.One)
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
@@ -157,22 +129,22 @@ func (s *FloatEncoder) Write(v float64) {
 		if trailing < 6 {
 			//s.bw.WriteBit(bitstream.Zero)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
+			s.bw.WriteBits(16 + leading / 2, 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			//s.bw.WriteBit(bitstream.One)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
+			s.bw.WriteBits(16 + 8 + leading / 2, 5)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
 
 	}
 
-	s.current = (s.current + 1 ) % previousValues
-	s.val[s.current] = v
+
+	s.val = v
 }
 
 // Write2 encodes v to the underlying buffer.
@@ -184,14 +156,14 @@ func (s *FloatEncoder) Write2(v float64) {
 	}
 	if s.first {
 		// first point
-		s.val[0] = v
+		s.val = v
 		s.first = false
 		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
 
-	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[0])
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
 
 	if vDelta == 0 {
 		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
@@ -231,17 +203,15 @@ func (s *FloatEncoder) Write2(v float64) {
 		}
 	}
 
-	s.val[0] = v
+	s.val = v
 }
 
 // FloatDecoder decodes a byte slice into multiple float64 values.
 type FloatDecoder struct {
 	val uint64
-	values [previousValues]uint64
 
 	leading  uint64
 	trailing uint64
-    current uint64
 
 	br BitReader
 	b  []byte
@@ -270,12 +240,7 @@ func (it *FloatDecoder) SetBytes(b []byte) error {
 	}
 
 	// Reset all fields.
-	for i := 0; i < previousValues; i++ {
-		it.values[i] = 0
-	}
 	it.val = v
-	it.current = 0
-	it.values[it.current] = v
 	it.leading = 0
 	it.trailing = 0
 	it.b = b
@@ -288,116 +253,6 @@ func (it *FloatDecoder) SetBytes(b []byte) error {
 
 // Next returns true if there are remaining values to read.
 func (it *FloatDecoder) Next() bool {
-	if it.err != nil || it.finished {
-		return false
-	}
-
-	if it.first {
-		it.first = false
-		// mark as finished if there were no values.
-		if it.values[it.current] == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-		fmt.Printf("First value is ready\n")
-		return true
-	}
-
-	// read index of previous value
-	index, err := it.br.ReadBits(uint(previousValuesLog2))
-	if err != nil {
-		it.err = err
-		return false
-	}
-	// read compressed value
-	var bit bool
-	if it.br.CanReadBitFast() {
-		bit = it.br.ReadBitFast()
-	} else if v, err := it.br.ReadBit(); err != nil {
-		it.err = err
-		return false
-	} else {
-		bit = v
-	}
-	if !bit {
-		//fmt.Printf("Same value!\n")
-		// it.val = it.val
-		it.val = it.values[index]
-		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
-		it.current = (it.current + 1) % previousValues
-		it.values[it.current] = it.val
-	} else {
-		var bit bool
-		if it.br.CanReadBitFast() {
-			bit = it.br.ReadBitFast()
-		} else if v, err := it.br.ReadBit(); err != nil {
-			it.err = err
-			return false
-		} else {
-			bit = v
-		}
-
-		if !bit {
-			bits, err := it.br.ReadBits(3)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits * 2
-
-			mbits := 64 - it.leading
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 0
-		} else {
-			bits, err := it.br.ReadBits(3)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits * 2
-
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			mbits := bits
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 64 - it.leading - mbits
-		}
-
-		mbits := uint(64 - it.leading - it.trailing)
-		bits, err := it.br.ReadBits(mbits)
-		if err != nil {
-			it.err = err
-			return false
-		}
-
-		//vbits := it.val
-		vbits := it.values[index]
-		vbits ^= (bits << it.trailing)
-
-		if vbits == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
-		it.val = vbits
-		it.current = (it.current + 1) % previousValues
-		it.values[it.current] = vbits
-	}
-
-	return true
-}
-
-// Next2 returns true if there are remaining values to read.
-func (it *FloatDecoder) Next2() bool {
 	if it.err != nil || it.finished {
 		return false
 	}
