@@ -110,19 +110,19 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
-		if leading >= 32 {
-			leading = 31
+		if leading >= 31 {
+			leading = 30
 		}
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
 			s.bw.WriteBit(bitstream.Zero)
-			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
+			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading/2)-int(s.trailing))
 		} else {
 			s.leading, s.trailing = leading, trailing
 
 			s.bw.WriteBit(bitstream.One)
-			s.bw.WriteBits(leading, 5)
+			s.bw.WriteBits(leading/2, 4)
 
 			// Note that if leading == trailing == 0, then sigbits == 64.  But that
 			// value doesn't actually fit into the 6 bits we have.
@@ -229,12 +229,12 @@ func (it *FloatDecoder) Next() bool {
 			// reuse leading/trailing zero bits
 			// it.leading, it.trailing = it.leading, it.trailing
 		} else {
-			bits, err := it.br.ReadBits(5)
+			bits, err := it.br.ReadBits(4)
 			if err != nil {
 				it.err = err
 				return false
 			}
-			it.leading = bits
+			it.leading = bits * 2
 
 			bits, err = it.br.ReadBits(6)
 			if err != nil {
