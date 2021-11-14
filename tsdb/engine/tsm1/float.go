@@ -72,6 +72,7 @@ func (s *FloatEncoder) Reset() {
 
 	s.finished = false
 	s.first = true
+	s.current = 0
 }
 
 // Bytes returns a copy of the underlying byte buffer used in the encoder.
