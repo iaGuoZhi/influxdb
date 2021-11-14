@@ -125,18 +125,25 @@ func (s *FloatEncoder) Write(v float64) {
 		// Luckily, we never need to encode 0 significant bits, since that would
 		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 		// adjust it back to 64 on unpacking.
+		leadingFlag := uint64(0)
+		if leading >= s.leading {
+			leading = s.leading
+		} else {
+			leadingFlag = 64
+			s.leading = leading
+		}
 		sigbits := 64 - 2 * (leading / 2) - trailing
 		if trailing < 6 {
 			//s.bw.WriteBit(bitstream.Zero)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(32 + leading / 2, 6)
+			s.bw.WriteBits(leadingFlag + 32 + leading / 2, 7)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			//s.bw.WriteBit(bitstream.One)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(32 + 16 + leading / 2, 6)
+			s.bw.WriteBits(leadingFlag + 32 + 16 + leading / 2, 7)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
@@ -291,15 +298,7 @@ func (it *FloatDecoder) Next() bool {
 		} else {
 			bit = v
 		}
-
 		if !bit {
-			bits, err := it.br.ReadBits(4)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits * 2
-
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
@@ -307,26 +306,51 @@ func (it *FloatDecoder) Next() bool {
 			}
 			it.trailing = 0
 		} else {
-			bits, err := it.br.ReadBits(4)
-			if err != nil {
+			var bit bool
+			if it.br.CanReadBitFast() {
+				bit = it.br.ReadBitFast()
+			} else if v, err := it.br.ReadBit(); err != nil {
 				it.err = err
 				return false
+			} else {
+				bit = v
 			}
-			it.leading = bits * 2
+			if !bit {
+				bits, err := it.br.ReadBits(4)
+				if err != nil {
+					it.err = err
+					return false
+				}
+				it.leading = bits * 2
 
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
+				mbits := 64 - it.leading
+				// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+				if mbits == 0 {
+					mbits = 64
+				}
+				it.trailing = 0
+			} else {
+				bits, err := it.br.ReadBits(4)
+				if err != nil {
+					it.err = err
+					return false
+				}
+				it.leading = bits * 2
+
+				bits, err = it.br.ReadBits(6)
+				if err != nil {
+					it.err = err
+					return false
+				}
+				mbits := bits
+				// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+				if mbits == 0 {
+					mbits = 64
+				}
+				it.trailing = 64 - it.leading - mbits
 			}
-			mbits := bits
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 64 - it.leading - mbits
 		}
-
+		
 		mbits := uint(64 - it.leading - it.trailing)
 		bits, err := it.br.ReadBits(mbits)
 		if err != nil {
