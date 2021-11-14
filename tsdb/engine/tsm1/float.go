@@ -113,11 +113,12 @@ func (s *FloatEncoder) Write(v float64) {
 		if leading >= 31 {
 			leading = 30
 		}
+		leading = 2 * (leading / 2)
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
 			s.bw.WriteBit(bitstream.Zero)
-			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
+			s.bw.WriteBits(vDelta>>s.trailing, 64-int(leading)-int(s.trailing))
 		} else {
 			s.leading, s.trailing = leading, trailing
 
