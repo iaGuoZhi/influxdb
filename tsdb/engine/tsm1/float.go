@@ -307,7 +307,6 @@ func (it *FloatDecoder) Next() bool {
 			it.finished = true
 			return false
 		}
-		fmt.Printf("First value is ready\n")
 		return true
 	}
 
