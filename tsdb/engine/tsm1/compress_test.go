@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 	var totalSize = int(0)
 	for iteration:= 0; iteration < iterations; iteration++ {
 		for i := 0; i < size; i++ {
-			var value float64 = 300 * float64(i) + 20 + float64(rand.Int() % 10) * 0.1
+			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * 0.1
 			values[i] = tsm1.NewValue(firstTimestamp, value)
 		}
 		b, err := tsm1.Values(values).Encode(nil)
@@ -35,6 +36,53 @@ func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 		totalSize += binary.Size(b)
 	}
 	fmt.Printf("Total bits: %v\n", totalSize)
+}
+
+
+func TestEncoding_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
+	rand.Seed(23)
+	var firstTimestamp int64 = 1444238178437870000
+	var iterations = 1000
+	var size = 1000
+	values := make([]tsm1.Value, size)
+	var totalSize = int(0)
+	for iteration:= 0; iteration < iterations; iteration++ {
+		for i := 0; i < size; i++ {
+			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * rand.Float64()
+			values[i] = tsm1.NewValue(firstTimestamp, value)
+		}
+		b, err := tsm1.Values(values).Encode(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		totalSize += binary.Size(b)
+	}
+	fmt.Printf("Total bits: %v\n", totalSize)
+}
+
+func TestEncoding_FloatBlock_Temperature_Floats(t *testing.T) {
+	var firstTimestamp int64 = 1444238178437870000
+	temperatures := [...]float64{64.2, 49.4, 48.8, 46.4, 47.9, 48.7, 48.9, 49.1, 49.0, 51.9, 51.7, 51.3, 47.0, 46.9, 47.5, 45.9, 44.5, 50.7, 54.0, 52.6, 54.2, 51.0, 53.5, 54.2, 54.2, 52.6, 55.5, 53.8, 54.3, 57.4, 56.9, 50.4, 50.1, 54.1, 49.1, 48.8, 50.7, 51.6, 52.6, 56.3, 59.0, 59.4, 55.5, 57.0, 60.8, 61.8, 57.7, 56.1, 53.4, 51.4, 52.6, 52.5, 57.5, 55.1, 54.3, 63.0, 60.0, 48.3, 55.3, 52.2, 56.6, 54.7, 51.9, 54.5, 58.5, 53.4, 51.8, 53.3, 65.6, 68.7, 58.4, 55.1, 52.8, 53.9, 54.8, 55.0, 52.8, 56.1, 56.5, 56.7, 51.4, 51.6, 53.3, 56.4, 54.7, 54.5, 53.4, 56.6, 53.2, 46.6, 47.4, 52.0, 62.2, 64.2, 59.5, 59.0, 54.9, 54.2, 57.8, 60.0, 61.1, 56.2, 56.1, 54.6, 54.5, 52.0, 56.6, 60.4, 62.7, 61.0, 56.5, 56.0, 53.1, 51.1, 57.2, 56.3, 56.5, 60.8, 60.4, 61.5}
+	values := make([]tsm1.Value, len(temperatures))
+	for i := 0; i < len(temperatures); i++ {
+		values[i] = tsm1.NewValue(firstTimestamp, temperatures[i])
+	}
+
+	b, err := tsm1.Values(values).Encode(nil)
+	fmt.Printf("Total bits: %v, %b\n", binary.Size(b)*8, b)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var decodedValues []tsm1.Value
+	decodedValues, err = tsm1.DecodeBlock(b, decodedValues)
+	if err != nil {
+		t.Fatalf("unexpected error decoding block: %v", err)
+	}
+
+	if !reflect.DeepEqual(decodedValues, values) {
+		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, values)
+	}
 }
 
 func TestCompress_Stocks_Germany(t *testing.T) {
