@@ -3,7 +3,9 @@ package tsm1_test
 import (
 	"bufio"
 	"compress/gzip"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +14,28 @@ import (
 
 	"github.com/influxdata/influxdb/v2/tsdb/engine/tsm1"
 )
+
+
+func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
+	rand.Seed(23)
+	var firstTimestamp int64 = 1444238178437870000
+	var iterations = 1000
+	var size = 1000
+	values := make([]tsm1.Value, size)
+	var totalSize = int(0)
+	for iteration:= 0; iteration < iterations; iteration++ {
+		for i := 0; i < size; i++ {
+			var value float64 = 300 * float64(i) + 20 + float64(rand.Int() % 10) * 0.1
+			values[i] = tsm1.NewValue(firstTimestamp, value)
+		}
+		b, err := tsm1.Values(values).Encode(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		totalSize += binary.Size(b)
+	}
+	fmt.Printf("Total bits: %v\n", totalSize)
+}
 
 func TestCompress_Stocks_Germany(t *testing.T) {
 	size := 1000
