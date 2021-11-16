@@ -142,8 +142,8 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
-		if leading >= 15 {
-			leading = 14
+		if leading >= 32 {
+			leading = 30
 		}
 
 
@@ -158,14 +158,14 @@ func (s *FloatEncoder) Write(v float64) {
 		if trailing < 6 {
 			//s.bw.WriteBit(bitstream.Zero)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
+			s.bw.WriteBits(previousIndex * 64 + 32 + leading / 2, previousValuesLog2 + 6)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			//s.bw.WriteBit(bitstream.One)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
+			s.bw.WriteBits(previousIndex * 64 + 32 + 16 + leading / 2, previousValuesLog2 + 6)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
@@ -338,7 +338,7 @@ func (it *FloatDecoder) Next() bool {
 		}
 
 		if !bit {
-			bits, err := it.br.ReadBits(3)
+			bits, err := it.br.ReadBits(4)
 			if err != nil {
 				it.err = err
 				return false
@@ -352,7 +352,7 @@ func (it *FloatDecoder) Next() bool {
 			}
 			it.trailing = 0
 		} else {
-			bits, err := it.br.ReadBits(3)
+			bits, err := it.br.ReadBits(4)
 			if err != nil {
 				it.err = err
 				return false
