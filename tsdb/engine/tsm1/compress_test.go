@@ -91,10 +91,10 @@ func TestCompress_FloatBlock_Temperature_Floats(t *testing.T) {
 
 func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	size := 1000
-	layout := "1/2/2006 15:04:05"
+	layout := "01/02/2006 15:04:05"
 	values := make([]tsm1.Value, size)
 
-	f, err := os.Open("../../../city_temperature.csv.gz")
+	f, err := os.Open("../../../city_temperature-fixed.csv.gz")
 	defer f.Close()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
@@ -107,24 +107,27 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	totalTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		t, err := time.Parse(layout, fmt.Sprintf("%s/%s/%s 00:00:00", row[4], row[5], row[6]))
+		row4, err := strconv.Atoi(row[4])
+		row5, err := strconv.Atoi(row[5])
+		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
 		if err != nil {
 			fmt.Println(err)
-		}
-		if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
-		}
-		currentRow += 1
-		if currentRow == size {
-			currentRow = 0
-			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+		} else {
+			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
+				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
 			}
-			elapsed := time.Since(start)
-			totalTime += elapsed
+			currentRow += 1
+			if currentRow == size {
+				currentRow = 0
+				start := time.Now()
+				if b, err := tsm1.Values(values).Encode(nil); err == nil {
+					//fmt.Println(len(b))
+					totalSize += len(b)
+				}
+				elapsed := time.Since(start)
+				totalTime += elapsed
+			}
 		}
 	}
 
