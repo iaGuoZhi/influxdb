@@ -28,6 +28,7 @@ func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 		for i := 0; i < size; i++ {
 			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * 0.1
 			values[i] = tsm1.NewValue(firstTimestamp, value)
+			firstTimestamp += 1
 		}
 		b, err := tsm1.Values(values).Encode(nil)
 		if err != nil {
@@ -50,6 +51,7 @@ func TestCompress_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
 		for i := 0; i < size; i++ {
 			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * rand.Float64()
 			values[i] = tsm1.NewValue(firstTimestamp, value)
+			firstTimestamp += 1
 		}
 		b, err := tsm1.Values(values).Encode(nil)
 		if err != nil {
@@ -66,6 +68,7 @@ func TestCompress_FloatBlock_Temperature_Floats(t *testing.T) {
 	values := make([]tsm1.Value, len(temperatures))
 	for i := 0; i < len(temperatures); i++ {
 		values[i] = tsm1.NewValue(firstTimestamp, temperatures[i])
+		firstTimestamp += 1
 	}
 
 	b, err := tsm1.Values(values).Encode(nil)
@@ -84,6 +87,51 @@ func TestCompress_FloatBlock_Temperature_Floats(t *testing.T) {
 		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, values)
 	}
 }
+
+
+func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
+	size := 1000
+	layout := "1/2/2006 15:04:05"
+	values := make([]tsm1.Value, size)
+
+	f, err := os.Open("../../../city_temperature.csv.gz")
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer gz.Close()
+	scanner := bufio.NewScanner(gz)
+	currentRow := 0
+	totalSize := 0
+	totalTime := time.Duration(0)
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), ",")
+		t, err := time.Parse(layout, fmt.Sprintf("%s/%s/%s 00:00:00", row[4], row[5], row[6]))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if value, err := strconv.ParseFloat(row[7], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			currentRow = 0
+			start := time.Now()
+			if b, err := tsm1.Values(values).Encode(nil); err == nil {
+				//fmt.Println(len(b))
+				totalSize += len(b)
+			}
+			elapsed := time.Since(start)
+			totalTime += elapsed
+		}
+	}
+
+	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+
+}
+
 
 func TestCompress_Stocks_Germany(t *testing.T) {
 	size := 1000
