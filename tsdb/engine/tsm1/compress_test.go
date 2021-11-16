@@ -113,7 +113,7 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 		}
 		if value, err := strconv.ParseFloat(row[7], 64); err == nil {
 			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-			fmt.Printf("%d: %v\n", t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
 		}
 		currentRow += 1
 		if currentRow == size {
