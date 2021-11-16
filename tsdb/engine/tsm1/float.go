@@ -129,47 +129,44 @@ func (s *FloatEncoder) Write(v float64) {
 
 	//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
 
-
 	if vDelta == 0 {
 		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
 		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
-		//s.bw.WriteBit(bitstream.Zero)
 	} else {
-		//s.bw.WriteBit(bitstream.One)
-
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
 
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
-		if leading >= 15 {
-			leading = 14
+		if leading >= 32 {
+			leading = 31
 		}
 
-
-		s.leading, s.trailing = leading, trailing
-
-		// Note that if leading == trailing == 0, then sigbits == 64.  But that
-		// value doesn't actually fit into the 6 bits we have.
-		// Luckily, we never need to encode 0 significant bits, since that would
-		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-		// adjust it back to 64 on unpacking.
-		sigbits := 64 - 2 * (leading / 2) - trailing
-		if trailing < 6 {
-			//s.bw.WriteBit(bitstream.Zero)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
-			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
+		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
+		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
+			//fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
+			s.bw.WriteBits(previousIndex, previousValuesLog2)
+			s.bw.WriteBit(bitstream.One)
+			s.bw.WriteBit(bitstream.Zero)
+			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			//s.bw.WriteBit(bitstream.One)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + 8 + leading / 2, previousValuesLog2 + 5)
+			s.leading, s.trailing = leading, trailing
+
+			s.bw.WriteBits(previousIndex, previousValuesLog2)
+			s.bw.WriteBit(bitstream.One)
+			s.bw.WriteBit(bitstream.One)
+			s.bw.WriteBits(leading, 5)
+
+			// Note that if leading == trailing == 0, then sigbits == 64.  But that
+			// value doesn't actually fit into the 6 bits we have.
+			// Luckily, we never need to encode 0 significant bits, since that would
+			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
+			// adjust it back to 64 on unpacking.
+			sigbits := 64 - leading - trailing
+			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
-
 	}
 
 	s.current = (s.current + 1 ) % previousValues
@@ -338,26 +335,15 @@ func (it *FloatDecoder) Next() bool {
 		}
 
 		if !bit {
-			bits, err := it.br.ReadBits(3)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits * 2
-
-			mbits := 64 - it.leading
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 0
+			// reuse leading/trailing zero bits
+			// it.leading, it.trailing = it.leading, it.trailing
 		} else {
-			bits, err := it.br.ReadBits(3)
+			bits, err := it.br.ReadBits(5)
 			if err != nil {
 				it.err = err
 				return false
 			}
-			it.leading = bits * 2
+			it.leading = bits
 
 			bits, err = it.br.ReadBits(6)
 			if err != nil {
