@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -77,15 +76,6 @@ func TestCompress_FloatBlock_Temperature_Floats(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var decodedValues []tsm1.Value
-	decodedValues, err = tsm1.DecodeBlock(b, decodedValues)
-	if err != nil {
-		t.Fatalf("unexpected error decoding block: %v", err)
-	}
-
-	if !reflect.DeepEqual(decodedValues, values) {
-		t.Fatalf("unexpected results:\n\tgot: %v\n\texp: %v\n", decodedValues, values)
-	}
 }
 
 
