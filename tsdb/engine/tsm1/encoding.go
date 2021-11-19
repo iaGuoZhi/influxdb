@@ -402,6 +402,7 @@ func encodeFloatBlockUsing(buf []byte, values []Value, tsenc TimeEncoder, venc *
 
 	// Encoded timestamp values
 	tb, err := tsenc.Bytes()
+	_ = tb
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +414,8 @@ func encodeFloatBlockUsing(buf []byte, values []Value, tsenc TimeEncoder, venc *
 
 	// Prepend the first timestamp of the block in the first 8 bytes and the block
 	// in the next byte, followed by the block
-	return packBlock(buf, BlockFloat64, tb, vb), nil
+	return packBlockValuesOnly(buf, BlockFloat64, vb), nil
+	//return packBlock(buf, BlockFloat64, tb, vb), nil
 }
 
 // DecodeFloatBlock decodes the float block from the byte slice
@@ -988,6 +990,23 @@ func packBlock(buf []byte, typ byte, ts []byte, values []byte) []byte {
 	// the timestamp block.
 	copy(b[i+len(ts):], values)
 	return b[:i+len(ts)+len(values)]
+}
+
+func packBlockValuesOnly(buf []byte, typ byte, values []byte) []byte {
+	// We encode the length of the timestamp block using a variable byte encoding.
+	// This allows small byte slices to take up 1 byte while larger ones use 2 or more.
+	sz := 1 + len(values)
+	if cap(buf) < sz {
+		buf = make([]byte, sz)
+	}
+	b := buf[:sz]
+	b[0] = typ
+
+	// block is <len timestamp bytes>, <ts bytes>, <value bytes>
+	copy(b[1:], values)
+	// We don't encode the value length because we know it's the rest of the block after
+	// the timestamp block.
+	return b[:sz]
 }
 
 func unpackBlock(buf []byte) (ts, values []byte, err error) {
