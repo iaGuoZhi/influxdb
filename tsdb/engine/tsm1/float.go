@@ -102,12 +102,13 @@ func (s *FloatEncoder) Write(v float64) {
 
 	if vDelta == 0 {
 		s.bw.WriteBit(bitstream.Zero)
+		fmt.Printf("Zero\n")
 	} else {
 		s.bw.WriteBit(bitstream.One)
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
-
+		fmt.Printf("%d,%d\n",leading,trailing)
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
 		if leading >= 32 {
