@@ -113,8 +113,30 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
-		if leading >= 15 {
+		leadingRepresentation := uint64(0)
+		if leading < 9 {
+			leading = 0
+		} else if leading < 12 {
+			leading = 8
+			leadingRepresentation = 1
+		}  else if leading < 14 {
+			leading = 12
+			leadingRepresentation = 2
+		}  else if leading < 16 {
 			leading = 14
+			leadingRepresentation = 3
+		}  else if leading < 18 {
+			leading = 16
+			leadingRepresentation = 4
+		}  else if leading < 20 {
+			leading = 18
+			leadingRepresentation = 5
+		}  else if leading < 22 {
+			leading = 20
+			leadingRepresentation = 6
+		} else if leading > 22 {
+			leading = 22
+			leadingRepresentation = 7
 		}
 
 
@@ -125,18 +147,18 @@ func (s *FloatEncoder) Write(v float64) {
 		// Luckily, we never need to encode 0 significant bits, since that would
 		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
 		// adjust it back to 64 on unpacking.
-		sigbits := 64 - 2 * (leading / 2) - trailing
+		sigbits := 64 - leading - trailing
 		if trailing < 6 {
 			//s.bw.WriteBit(bitstream.Zero)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(16 + leading / 2, 5)
+			s.bw.WriteBits(16 + leadingRepresentation, 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
 		} else {
 			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
 			//s.bw.WriteBit(bitstream.One)
 			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(16 + 8 + leading / 2, 5)
+			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
@@ -298,7 +320,33 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
-			it.leading = bits * 2
+
+			switch bits {
+			case 0:
+				it.leading = 0
+				break
+			case 1:
+				it.leading = 8
+				break
+			case 2:
+				it.leading = 12
+				break
+			case 3:
+				it.leading = 14
+				break
+			case 4:
+				it.leading = 16
+				break
+			case 5:
+				it.leading = 18
+				break
+			case 6:
+				it.leading = 20
+				break
+			case 7:
+				it.leading = 22
+				break
+			}
 
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
@@ -312,7 +360,32 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
-			it.leading = bits * 2
+			switch bits {
+			case 0:
+				it.leading = 0
+				break
+			case 1:
+				it.leading = 8
+				break
+			case 2:
+				it.leading = 12
+				break
+			case 3:
+				it.leading = 14
+				break
+			case 4:
+				it.leading = 16
+				break
+			case 5:
+				it.leading = 18
+				break
+			case 6:
+				it.leading = 20
+				break
+			case 7:
+				it.leading = 22
+				break
+			}
 
 			bits, err = it.br.ReadBits(6)
 			if err != nil {

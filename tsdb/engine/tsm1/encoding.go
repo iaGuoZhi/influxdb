@@ -419,8 +419,8 @@ func encodeFloatBlockUsing(buf []byte, values []Value, tsenc TimeEncoder, venc *
 
 	// Prepend the first timestamp of the block in the first 8 bytes and the block
 	// in the next byte, followed by the block
-	return packBlockValuesOnly(buf, BlockFloat64, vb), nil
-	//return packBlock(buf, BlockFloat64, tb, vb), nil
+	//return packBlockValuesOnly(buf, BlockFloat64, vb), nil
+	return packBlock(buf, BlockFloat64, tb, vb), nil
 }
 
 // DecodeFloatBlock decodes the float block from the byte slice
