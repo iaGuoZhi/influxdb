@@ -1172,3 +1172,132 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
 
 }
+
+func TestCompress_Air_Sensor_Data(t *testing.T) {
+	size := 1000
+	layout := "01/02/2006 15:04:05"
+	values := make([]tsm1.Value, size)
+
+	f, err := os.Open("../../../air-sensor-data.csv.gz")
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer gz.Close()
+	scanner := bufio.NewScanner(gz)
+	currentRow := 0
+	totalSize := 0
+	totalTime := time.Duration(0)
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), ",")
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			currentRow = 0
+			start := time.Now()
+			if b, err := tsm1.Values(values).Encode(nil); err == nil {
+				//fmt.Println(len(b))
+				totalSize += len(b)
+			}
+			elapsed := time.Since(start)
+			totalTime += elapsed
+		}
+	}
+
+	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+
+}
+
+func TestCompress_Bird_Migration_Data(t *testing.T) {
+	size := 1000
+	layout := "01/02/2006 15:04:05"
+	values := make([]tsm1.Value, size)
+
+	f, err := os.Open("../../../bird-migration-data.csv.gz")
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer gz.Close()
+	scanner := bufio.NewScanner(gz)
+	currentRow := 0
+	totalSize := 0
+	totalTime := time.Duration(0)
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), ",")
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			currentRow = 0
+			start := time.Now()
+			if b, err := tsm1.Values(values).Encode(nil); err == nil {
+				//fmt.Println(len(b))
+				totalSize += len(b)
+			}
+			elapsed := time.Since(start)
+			totalTime += elapsed
+		}
+	}
+
+	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+
+}
+
+func TestCompress_Bitcoin_Price_Data(t *testing.T) {
+	size := 1000
+	layout := "01/02/2006 15:04:05"
+	values := make([]tsm1.Value, size)
+
+	f, err := os.Open("../../../bitcoin-price-data.csv.gz")
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer gz.Close()
+	scanner := bufio.NewScanner(gz)
+	currentRow := 0
+	totalSize := 0
+	totalTime := time.Duration(0)
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), ",")
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			currentRow = 0
+			start := time.Now()
+			if b, err := tsm1.Values(values).Encode(nil); err == nil {
+				//fmt.Println(len(b))
+				totalSize += len(b)
+			}
+			elapsed := time.Since(start)
+			totalTime += elapsed
+		}
+	}
+
+	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+
+}
