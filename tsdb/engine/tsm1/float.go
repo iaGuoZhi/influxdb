@@ -97,7 +97,6 @@ func (s *FloatEncoder) Write(v float64) {
 		// first point
 		s.val = v
 		s.first = false
-		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
@@ -105,7 +104,7 @@ func (s *FloatEncoder) Write(v float64) {
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
 
 	if vDelta == 0 {
-		s.bw.WriteBits(0 ,2)
+		s.bw.WriteBits(0, 2)
 	} else {
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
@@ -145,72 +144,13 @@ func (s *FloatEncoder) Write(v float64) {
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		} else if leading == s.leading {
-			s.bw.WriteBits(2 , 2)
+			s.bw.WriteBits(2, 2)
 			s.bw.WriteBits(vDelta, int(64 - leading))
 		} else {
 			s.leading, s.trailing = leading, trailing
 			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-		}
-	}
-
-	s.val = v
-}
-
-// Write2 encodes v to the underlying buffer.
-func (s *FloatEncoder) Write2(v float64) {
-	// Only allow NaN as a sentinel value
-	if math.IsNaN(v) && !s.finished {
-		s.err = fmt.Errorf("unsupported value: NaN")
-		return
-	}
-	if s.first {
-		// first point
-		s.val = v
-		s.first = false
-		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
-		s.bw.WriteBits(math.Float64bits(v), 64)
-		return
-	}
-
-	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
-
-	if vDelta == 0 {
-		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBit(bitstream.Zero)
-	} else {
-		s.bw.WriteBit(bitstream.One)
-
-		leading := uint64(bits.LeadingZeros64(vDelta))
-		trailing := uint64(bits.TrailingZeros64(vDelta))
-
-		// Clamp number of leading zeros to avoid overflow when encoding
-		leading &= 0x1F
-		if leading >= 32 {
-			leading = 31
-		}
-
-		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
-		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
-			//fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
-			s.bw.WriteBit(bitstream.Zero)
-			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
-		} else {
-			s.leading, s.trailing = leading, trailing
-
-			s.bw.WriteBit(bitstream.One)
-			s.bw.WriteBits(leading, 5)
-
-			// Note that if leading == trailing == 0, then sigbits == 64.  But that
-			// value doesn't actually fit into the 6 bits we have.
-			// Luckily, we never need to encode 0 significant bits, since that would
-			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-			// adjust it back to 64 on unpacking.
-			sigbits := 64 - leading - trailing
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			s.bw.WriteBits(sigbits, 6)
-			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		}
 	}
 
@@ -291,7 +231,51 @@ func (it *FloatDecoder) Next() bool {
 		bit = v
 	}
 	if !bit {
-		it.val = it.val
+		var bit bool
+		if it.br.CanReadBitFast() {
+			bit = it.br.ReadBitFast()
+		} else if v, err := it.br.ReadBit(); err != nil {
+			it.err = err
+			return false
+		} else {
+			bit = v
+		}
+		if !bit {
+			it.val = it.val
+		} else {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			it.leading = getLeadingBits(bits)
+			bits, err = it.br.ReadBits(6)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			mbits := bits
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 64 - it.leading - mbits
+
+			sigbits, err := it.br.ReadBits(uint(mbits))
+			if err != nil {
+				it.err = err
+				return false
+			}
+
+			vbits := it.val
+			vbits ^= (sigbits << it.trailing)
+
+			if vbits == uvnan { // IsNaN
+				it.finished = true
+				return false
+			}
+			it.val = vbits
+		}
 	} else {
 		var bit bool
 		if it.br.CanReadBitFast() {
@@ -302,40 +286,9 @@ func (it *FloatDecoder) Next() bool {
 		} else {
 			bit = v
 		}
-
 		if !bit {
-			bits, err := it.br.ReadBits(3)
-			if err != nil {
-				it.err = err
-				return false
-			}
 
-			switch bits {
-			case 0:
-				it.leading = 0
-				break
-			case 1:
-				it.leading = 8
-				break
-			case 2:
-				it.leading = 12
-				break
-			case 3:
-				it.leading = 14
-				break
-			case 4:
-				it.leading = 16
-				break
-			case 5:
-				it.leading = 18
-				break
-			case 6:
-				it.leading = 20
-				break
-			case 7:
-				it.leading = 22
-				break
-			}
+            it.leading = it.leading
 
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
@@ -349,44 +302,13 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
-			switch bits {
-			case 0:
-				it.leading = 0
-				break
-			case 1:
-				it.leading = 8
-				break
-			case 2:
-				it.leading = 12
-				break
-			case 3:
-				it.leading = 14
-				break
-			case 4:
-				it.leading = 16
-				break
-			case 5:
-				it.leading = 18
-				break
-			case 6:
-				it.leading = 20
-				break
-			case 7:
-				it.leading = 22
-				break
-			}
-
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			mbits := bits
+			it.leading = getLeadingBits(bits)
+			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
 				mbits = 64
 			}
-			it.trailing = 64 - it.leading - mbits
+			it.trailing = 0
 		}
 
 		mbits := uint(64 - it.leading - it.trailing)
@@ -403,97 +325,32 @@ func (it *FloatDecoder) Next() bool {
 			it.finished = true
 			return false
 		}
-		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
 		it.val = vbits
 	}
 
 	return true
 }
 
-// Next2 returns true if there are remaining values to read.
-func (it *FloatDecoder) Next2() bool {
-	if it.err != nil || it.finished {
-		return false
+func getLeadingBits(bits uint64) uint64 {
+	switch bits {
+	case 0:
+		return 0
+	case 1:
+		return 8
+	case 2:
+		return 12
+	case 3:
+		return 14
+	case 4:
+		return 16
+	case 5:
+		return 18
+	case 6:
+		return 20
+	case 7:
+		return 22
 	}
-
-	if it.first {
-		it.first = false
-
-		// mark as finished if there were no values.
-		if it.val == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-
-		return true
-	}
-
-	// read compressed value
-	var bit bool
-	if it.br.CanReadBitFast() {
-		bit = it.br.ReadBitFast()
-	} else if v, err := it.br.ReadBit(); err != nil {
-		it.err = err
-		return false
-	} else {
-		bit = v
-	}
-
-	if !bit {
-		// it.val = it.val
-	} else {
-		var bit bool
-		if it.br.CanReadBitFast() {
-			bit = it.br.ReadBitFast()
-		} else if v, err := it.br.ReadBit(); err != nil {
-			it.err = err
-			return false
-		} else {
-			bit = v
-		}
-
-		if !bit {
-			// reuse leading/trailing zero bits
-			// it.leading, it.trailing = it.leading, it.trailing
-		} else {
-			bits, err := it.br.ReadBits(5)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits
-
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			mbits := bits
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 64 - it.leading - mbits
-		}
-
-		mbits := uint(64 - it.leading - it.trailing)
-		bits, err := it.br.ReadBits(mbits)
-		if err != nil {
-			it.err = err
-			return false
-		}
-
-		vbits := it.val
-		vbits ^= (bits << it.trailing)
-
-		if vbits == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-		it.val = vbits
-	}
-
-	return true
+	return 0
 }
 
 // Values returns the current float64 value.
