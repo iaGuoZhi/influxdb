@@ -141,7 +141,7 @@ func (s *FloatEncoder) Write(v float64) {
 
 		if (trailing > 5) {
 			sigbits := 64 - leading - trailing
-			s.bw.WriteBits(8 + leadingRepresentation, 6)
+			s.bw.WriteBits(8 + leadingRepresentation, 5)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		} else if leading == s.leading {
@@ -150,7 +150,7 @@ func (s *FloatEncoder) Write(v float64) {
 		} else {
 			s.leading, s.trailing = leading, trailing
 			sigbits := 64 - leading - trailing
-			s.bw.WriteBits(16 + 8 + leadingRepresentation, 6)
+			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 		}
 	}
