@@ -22,12 +22,15 @@ import (
 // floatCompressedGorilla is a compressed format using the gorilla paper encoding
 const floatCompressedGorilla = 1
 
+const previousValues = 128
+var previousValuesLog2 =  int(math.Log2(previousValues))
+
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
 
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
-	val float64
+	val [previousValues]float64
 	err error
 
 	leading  uint64
@@ -38,6 +41,7 @@ type FloatEncoder struct {
 
 	first    bool
 	finished bool
+	current  uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -55,7 +59,9 @@ func NewFloatEncoder() *FloatEncoder {
 
 // Reset sets the encoder back to its initial state.
 func (s *FloatEncoder) Reset() {
-	s.val = 0
+	for i := 0; i < previousValues; i++ {
+		s.val[i] = 0
+	}
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
@@ -66,6 +72,7 @@ func (s *FloatEncoder) Reset() {
 
 	s.finished = false
 	s.first = true
+	s.current = 0
 }
 
 // Bytes returns a copy of the underlying byte buffer used in the encoder.
@@ -95,16 +102,32 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 	if s.first {
 		// first point
-		s.val = v
+		s.val[s.current] = v
 		s.first = false
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
 
-	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
+	previousIndex := s.current
+	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
+	var vDelta uint64
+	maxTrailingBits := 6
+	for i := uint64(0); i < previousValues; i++ {
+		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
+		trailingBits := bits.TrailingZeros64(iVDelta)
+		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
+		if trailingBits >= maxTrailingBits {
+			previousIndex = i
+			maxTrailingBits = trailingBits
+			vDelta = iVDelta
+			/*if vDelta == 0 {
+				break
+			}*/
+		}
+	}
 
 	if vDelta == 0 {
-		s.bw.WriteBits(0, 2)
+		s.bw.WriteBits(previousIndex, previousValuesLog2 + 2)
 	} else {
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
@@ -138,9 +161,10 @@ func (s *FloatEncoder) Write(v float64) {
 			leadingRepresentation = 7
 		}
 
-		if (trailing > 5) {
+		if trailing > 5 {
 			sigbits := 64 - leading - trailing
-			s.bw.WriteBits(8 + leadingRepresentation, 5)
+			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
+			s.bw.WriteBits(leadingRepresentation, 3)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 		} else if leading == s.leading {
@@ -153,16 +177,18 @@ func (s *FloatEncoder) Write(v float64) {
 			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 		}
 	}
-
-	s.val = v
+	s.current = (s.current + 1 ) % previousValues
+	s.val[s.current] = v
 }
 
 // FloatDecoder decodes a byte slice into multiple float64 values.
 type FloatDecoder struct {
 	val uint64
+	values [previousValues]uint64
 
 	leading  uint64
 	trailing uint64
+	current uint64
 
 	br BitReader
 	b  []byte
@@ -191,7 +217,12 @@ func (it *FloatDecoder) SetBytes(b []byte) error {
 	}
 
 	// Reset all fields.
+	for i := 0; i < previousValues; i++ {
+		it.values[i] = 0
+	}
 	it.val = v
+	it.current = 0
+	it.values[it.current] = v
 	it.leading = 0
 	it.trailing = 0
 	it.b = b
@@ -212,7 +243,7 @@ func (it *FloatDecoder) Next() bool {
 		it.first = false
 
 		// mark as finished if there were no values.
-		if it.val == uvnan { // IsNaN
+		if it.values[it.current] == uvnan { // IsNaN
 			it.finished = true
 			return false
 		}
@@ -240,8 +271,16 @@ func (it *FloatDecoder) Next() bool {
 		} else {
 			bit = v
 		}
+		// read index of previous value
+		index, err := it.br.ReadBits(uint(previousValuesLog2))
+		if err != nil {
+			it.err = err
+			return false
+		}
 		if !bit {
-			it.val = it.val
+			it.val = it.values[index]
+			it.current = (it.current + 1) % previousValues
+			it.values[it.current] = it.val
 		} else {
 			bits, err := it.br.ReadBits(3)
 			if err != nil {
@@ -267,7 +306,7 @@ func (it *FloatDecoder) Next() bool {
 				return false
 			}
 
-			vbits := it.val
+			vbits := it.values[index]
 			vbits ^= (sigbits << it.trailing)
 
 			if vbits == uvnan { // IsNaN
@@ -275,6 +314,8 @@ func (it *FloatDecoder) Next() bool {
 				return false
 			}
 			it.val = vbits
+			it.current = (it.current + 1) % previousValues
+			it.values[it.current] = vbits
 		}
 	} else {
 		var bit bool
@@ -288,7 +329,7 @@ func (it *FloatDecoder) Next() bool {
 		}
 		if !bit {
 
-            it.leading = it.leading
+			it.leading = it.leading
 
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
@@ -326,6 +367,8 @@ func (it *FloatDecoder) Next() bool {
 			return false
 		}
 		it.val = vbits
+		it.current = (it.current + 1) % previousValues
+		it.values[it.current] = it.val
 	}
 
 	return true
