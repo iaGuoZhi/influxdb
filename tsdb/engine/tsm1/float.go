@@ -105,7 +105,7 @@ func (s *FloatEncoder) Write(v float64) {
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
 
 	if vDelta == 0 {
-		s.bw.WriteBit(bitstream.Zero)
+		s.bw.WriteBits(0 ,2)
 	} else {
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
@@ -139,41 +139,21 @@ func (s *FloatEncoder) Write(v float64) {
 			leadingRepresentation = 7
 		}
 
-		if leading == s.leading && trailing < 6 {
+		if (trailing > 5) {
+			sigbits := 64 - leading - trailing
+			s.bw.WriteBits(8 + leadingRepresentation, 6)
+			s.bw.WriteBits(sigbits, 6)
+			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
+		} else if leading == s.leading {
 			s.bw.WriteBits(2 , 2)
 			s.bw.WriteBits(vDelta, int(64 - leading))
 		} else {
 			s.leading, s.trailing = leading, trailing
-			// Note that if leading == trailing == 0, then sigbits == 64.  But that
-			// value doesn't actually fit into the 6 bits we have.
-			// Luckily, we never need to encode 0 significant bits, since that would
-			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-			// adjust it back to 64 on unpacking.
 			sigbits := 64 - leading - trailing
-
-			if trailing < 6 {
-				//s.bw.WriteBit(bitstream.Zero)
-				//s.bw.WriteBits(previousIndex, previousValuesLog2)
-				s.bw.WriteBits(32 + 16 + leadingRepresentation, 6)
-				s.bw.WriteBits(vDelta, int(sigbits + trailing))
-				//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
-			} else {
-				//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-				//s.bw.WriteBit(bitstream.One)
-				//s.bw.WriteBits(previousIndex, previousValuesLog2)
-				s.bw.WriteBits(32 + 16 + 8 + leadingRepresentation, 6)
-				s.bw.WriteBits(sigbits, 6)
-				s.bw.WriteBits(vDelta>>trailing, int(sigbits))
-			}
+			s.bw.WriteBits(16 + 8 + leadingRepresentation, 6)
+			s.bw.WriteBits(vDelta, int(sigbits + trailing))
 		}
-
-
-
-
-
-
 	}
-
 
 	s.val = v
 }
