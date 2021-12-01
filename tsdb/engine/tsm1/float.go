@@ -109,8 +109,7 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 
 	previousIndex := s.current
-	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
-	var vDelta uint64
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[s.current])
 	maxTrailingBits := 6
 	for i := uint64(0); i < previousValues; i++ {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
@@ -128,6 +127,8 @@ func (s *FloatEncoder) Write(v float64) {
 
 	if vDelta == 0 {
 		s.bw.WriteBits(previousIndex, previousValuesLog2 + 2)
+		//fmt.Printf("%d SV: 00%b\n", s.leading, previousIndex)
+		s.leading = 65
 	} else {
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
@@ -156,7 +157,7 @@ func (s *FloatEncoder) Write(v float64) {
 		}  else if leading < 22 {
 			leading = 20
 			leadingRepresentation = 6
-		} else if leading > 22 {
+		} else if leading >= 22 {
 			leading = 22
 			leadingRepresentation = 7
 		}
@@ -167,17 +168,20 @@ func (s *FloatEncoder) Write(v float64) {
 			s.bw.WriteBits(leadingRepresentation, 3)
 			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
+			s.leading = 65
+			//fmt.Printf("%d NV: 0%b%b%b%b\n", leading, previousValues + previousIndex, leadingRepresentation, sigbits, vDelta>>trailing)
 		} else if leading == s.leading {
 			s.bw.WriteBits(2, 2)
 			s.bw.WriteBits(vDelta, int(64 - leading))
+			//fmt.Printf("%d SL: %b%b\n", leading, 2, vDelta)
 		} else {
 			s.leading, s.trailing = leading, trailing
-			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
-			s.bw.WriteBits(vDelta, int(sigbits + trailing))
+			s.bw.WriteBits(vDelta, int(64 - leading))
+			//fmt.Printf("%d DL: %b%b  %d %d\n", leading, 16 + 8 + leadingRepresentation, vDelta, leading, leadingRepresentation)
 		}
 	}
-	s.current = (s.current + 1 ) % previousValues
+	s.current = (s.current + 1) % previousValues
 	s.val[s.current] = v
 }
 
@@ -277,22 +281,26 @@ func (it *FloatDecoder) Next() bool {
 			it.err = err
 			return false
 		}
+		//fmt.Printf("INDEX: %b\n", index)
 		if !bit {
 			it.val = it.values[index]
 			it.current = (it.current + 1) % previousValues
 			it.values[it.current] = it.val
+			//fmt.Printf("%d 1SV 00%b\n", it.leading, index)
 		} else {
 			bits, err := it.br.ReadBits(3)
 			if err != nil {
 				it.err = err
 				return false
 			}
+			//fmt.Printf("%d 2NV: 01%b%b", it.leading, index, bits)
 			it.leading = getLeadingBits(bits)
 			bits, err = it.br.ReadBits(6)
 			if err != nil {
 				it.err = err
 				return false
 			}
+			//fmt.Printf("%b", bits)
 			mbits := bits
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
@@ -301,11 +309,11 @@ func (it *FloatDecoder) Next() bool {
 			it.trailing = 64 - it.leading - mbits
 
 			sigbits, err := it.br.ReadBits(uint(mbits))
+			//fmt.Printf("%b\n", sigbits)
 			if err != nil {
 				it.err = err
 				return false
 			}
-
 			vbits := it.values[index]
 			vbits ^= (sigbits << it.trailing)
 
@@ -328,9 +336,7 @@ func (it *FloatDecoder) Next() bool {
 			bit = v
 		}
 		if !bit {
-
-			it.leading = it.leading
-
+			//fmt.Printf("%d 3SL 10", it.leading)
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
@@ -343,6 +349,7 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
+			//fmt.Printf("%d 4DL 11%b", it.leading, bits)
 			it.leading = getLeadingBits(bits)
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
@@ -358,7 +365,7 @@ func (it *FloatDecoder) Next() bool {
 			it.err = err
 			return false
 		}
-
+		//fmt.Printf("%b\n", bits)
 		vbits := it.val
 		vbits ^= (bits << it.trailing)
 
