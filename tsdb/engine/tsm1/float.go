@@ -133,7 +133,7 @@ func (s *FloatEncoder) Write(v float64) {
 		}  else if leading < 22 {
 			leading = 20
 			leadingRepresentation = 6
-		} else if leading > 22 {
+		} else if leading >= 22 {
 			leading = 22
 			leadingRepresentation = 7
 		}
