@@ -102,7 +102,7 @@ func (s *FloatEncoder) Write(v float64) {
 
 	if vDelta == 0 {
 		s.bw.WriteBit(bitstream.Zero)
-		fmt.Printf("Zero\n")
+		fmt.Printf("00\n")
 	} else {
 		s.bw.WriteBit(bitstream.One)
 
@@ -117,9 +117,11 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
+			fmt.Printf("10\n")
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
+			fmt.Printf("11\n")
 			s.leading, s.trailing = leading, trailing
 
 			s.bw.WriteBit(bitstream.One)
