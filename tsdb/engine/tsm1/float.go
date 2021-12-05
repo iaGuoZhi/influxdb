@@ -126,6 +126,7 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 
 	if vDelta == 0 {
+		fmt.Printf("00\n")
 		s.bw.WriteBits(previousIndex, previousValuesLog2 + 2)
 		//fmt.Printf("%d SV: 00%b\n", s.leading, previousIndex)
 		s.leading = 65
@@ -133,7 +134,7 @@ func (s *FloatEncoder) Write(v float64) {
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
-
+		fmt.Printf("%d,%d\n", leading, trailing)
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
 		leadingRepresentation := uint64(0)
@@ -163,6 +164,7 @@ func (s *FloatEncoder) Write(v float64) {
 		}
 
 		if trailing > 5 {
+			fmt.Printf("01\n")
 			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
 			s.bw.WriteBits(leadingRepresentation, 3)
@@ -171,10 +173,12 @@ func (s *FloatEncoder) Write(v float64) {
 			s.leading = 65
 			//fmt.Printf("%d NV: 0%b%b%b%b\n", leading, previousValues + previousIndex, leadingRepresentation, sigbits, vDelta>>trailing)
 		} else if leading == s.leading {
+			fmt.Printf("10\n")
 			s.bw.WriteBits(2, 2)
 			s.bw.WriteBits(vDelta, int(64 - leading))
 			//fmt.Printf("%d SL: %b%b\n", leading, 2, vDelta)
 		} else {
+			fmt.Printf("11\n")
 			s.leading, s.trailing = leading, trailing
 			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
 			s.bw.WriteBits(vDelta, int(64 - leading))
