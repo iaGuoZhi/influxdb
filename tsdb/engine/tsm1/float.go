@@ -116,6 +116,7 @@ func (s *FloatEncoder) Write(v float64) {
 
 		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
 		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
+			fmt.Printf("%d\t%d\t%d\t%d\t%d\t%d\n", leading - s.leading, leading, s.leading, trailing - s.trailing, trailing, s.trailing)
 			s.bw.WriteBit(bitstream.Zero)
 			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
 		} else {
