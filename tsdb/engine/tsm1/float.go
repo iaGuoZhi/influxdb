@@ -23,6 +23,7 @@ const floatCompressedGorilla = 1
 
 const previousValues = 128
 var previousValuesLog2 =  int(math.Log2(previousValues))
+var threshold = 6 + uint64(previousValuesLog2)
 
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
@@ -116,131 +117,75 @@ func (s *FloatEncoder) Write(v float64) {
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
-	previousIndex := s.i.getAll(v, s.index, previousValues)
+	previousIndex := s.i.getAll(v, s.index, previousValues, threshold)
 	if previousIndex == previousValues {
 		previousIndex = s.index % previousValues
-    }
+	}
 
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 
-	/*f, err := os.OpenFile("/home/panagiotis/log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()*/
 
 	if vDelta == 0 {
-		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBits(previousIndex * 2, previousValuesLog2 + 1)
-		//f.WriteString(fmt.Sprintf("0,%d,%d\n", previousValuesLog2 + 1, 0))
-		//s.bw.WriteBit(bitstream.Zero)
+		s.bw.WriteBits(previousIndex, previousValuesLog2 + 2)
+		//fmt.Printf("%d SV: 00%b\n", s.leading, previousIndex)
+		s.leading = 65
 	} else {
-		//s.bw.WriteBit(bitstream.One)
 
 		leading := uint64(bits.LeadingZeros64(vDelta))
 		trailing := uint64(bits.TrailingZeros64(vDelta))
 
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
-		if leading >= 15 {
+		leadingRepresentation := uint64(0)
+		if leading < 8 {
+			leading = 0
+		} else if leading < 12 {
+			leading = 8
+			leadingRepresentation = 1
+		}  else if leading < 14 {
+			leading = 12
+			leadingRepresentation = 2
+		}  else if leading < 16 {
 			leading = 14
+			leadingRepresentation = 3
+		}  else if leading < 18 {
+			leading = 16
+			leadingRepresentation = 4
+		}  else if leading < 20 {
+			leading = 18
+			leadingRepresentation = 5
+		}  else if leading < 22 {
+			leading = 20
+			leadingRepresentation = 6
+		} else if leading >= 22 {
+			leading = 22
+			leadingRepresentation = 7
 		}
 
-		s.leading, s.trailing = leading, trailing
-
-		// Note that if leading == trailing == 0, then sigbits == 64.  But that
-		// value doesn't actually fit into the 6 bits we have.
-		// Luckily, we never need to encode 0 significant bits, since that would
-		// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-		// adjust it back to 64 on unpacking.
-		sigbits := 64 - 2 * (leading / 2) - trailing
-		if trailing < 6 {
-			//s.bw.WriteBit(bitstream.Zero)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits(previousIndex * 32 + 16 + leading / 2, previousValuesLog2 + 5)
-			s.bw.WriteBits(vDelta, int(sigbits + trailing))
-			//f.WriteString(fmt.Sprintf("1,%d,%d\n", previousValuesLog2 + 5, int(sigbits + trailing)))
-			//fmt.Printf("%d, %d\n", previousValuesLog2 + 5, int(sigbits + trailing))
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (0), leading (3 bits), vDelta (%v bits)\n", v, vDelta, sigbits + trailing)
-		} else {
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1) leading (3 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			//s.bw.WriteBit(bitstream.One)
-			//s.bw.WriteBits(previousIndex, previousValuesLog2)
-			s.bw.WriteBits((previousIndex * 32 + 16 + 8 + leading / 2) * 64 + sigbits, previousValuesLog2 + 6 + 5)
-			//s.bw.WriteBits(sigbits, 6)
+		if trailing > threshold {
+			sigbits := 64 - leading - trailing
+			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
+			s.bw.WriteBits(leadingRepresentation, 3)
+			s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
-			//f.WriteString(fmt.Sprintf("2,%d,%d\n", previousValuesLog2 + 6 + 5, int(sigbits)))
-
-			//fmt.Printf("%d, %d, %d\n", previousValuesLog2 + 5, 6, int(sigbits))
+			s.leading = 65
+			//fmt.Printf("%d NV: 0%b%b%b%b\n", leading, previousValues + previousIndex, leadingRepresentation, sigbits, vDelta>>trailing)
+		} else if leading == s.leading {
+			s.bw.WriteBits(2, 2)
+			s.bw.WriteBits(vDelta, int(64 - leading))
+			//fmt.Printf("%d SL: %b%b\n", leading, 2, vDelta)
+		} else {
+			s.leading, s.trailing = leading, trailing
+			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
+			s.bw.WriteBits(vDelta, int(64 - leading))
 		}
-
 	}
-
-	s.current = (s.current + 1 ) % previousValues
+	s.current = (s.current + 1) % previousValues
 	s.val[s.current] = v
 	s.index = s.index + 1
 	//fmt.Printf("Adding %v with %d\n", v, s.index)
 	s.i.addRecord(v, s.index)
 	//fmt.Printf("Total comparisons: %d\n", s.comparisonsCounter)
-}
-
-// Write2 encodes v to the underlying buffer.
-func (s *FloatEncoder) Write2(v float64) {
-	// Only allow NaN as a sentinel value
-	if math.IsNaN(v) && !s.finished {
-		s.err = fmt.Errorf("unsupported value: NaN")
-		return
-	}
-	if s.first {
-		// first point
-		s.val[0] = v
-		s.first = false
-		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
-		s.bw.WriteBits(math.Float64bits(v), 64)
-		return
-	}
-
-	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[0])
-
-	if vDelta == 0 {
-		//fmt.Printf("Value: %G, Delta = %064b, 1 bit (0)...\n", v, vDelta)
-		s.bw.WriteBit(bitstream.Zero)
-	} else {
-		s.bw.WriteBit(bitstream.One)
-
-		leading := uint64(bits.LeadingZeros64(vDelta))
-		trailing := uint64(bits.TrailingZeros64(vDelta))
-
-		// Clamp number of leading zeros to avoid overflow when encoding
-		leading &= 0x1F
-		if leading >= 32 {
-			leading = 31
-		}
-
-		// TODO(dgryski): check if it's 'cheaper' to reset the leading/trailing bits instead
-		if s.leading != ^uint64(0) && leading >= s.leading && trailing >= s.trailing {
-			//fmt.Printf("Value: %G, Delta = %064b, Case 1, 1 bit (1), 1 bit (0), vDelta>>s.trailing (%v bits)\n", v, vDelta, 64-int(s.leading)-int(s.trailing))
-			s.bw.WriteBit(bitstream.Zero)
-			s.bw.WriteBits(vDelta>>s.trailing, 64-int(s.leading)-int(s.trailing))
-		} else {
-			s.leading, s.trailing = leading, trailing
-
-			s.bw.WriteBit(bitstream.One)
-			s.bw.WriteBits(leading, 5)
-
-			// Note that if leading == trailing == 0, then sigbits == 64.  But that
-			// value doesn't actually fit into the 6 bits we have.
-			// Luckily, we never need to encode 0 significant bits, since that would
-			// put us in the other case (vdelta == 0).  So instead we write out a 0 and
-			// adjust it back to 64 on unpacking.
-			sigbits := 64 - leading - trailing
-			//fmt.Printf("Value: %G, Delta = %064b, Case 2, 1 bit (1), 1 bit (1), leading (5 bits), sigbits (6 bits), vDelta>>trailing (%v bits)\n", v, vDelta, sigbits)
-			s.bw.WriteBits(sigbits, 6)
-			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
-		}
-	}
-
-	s.val[0] = v
 }
 
 // FloatDecoder decodes a byte slice into multiple float64 values.
@@ -303,20 +248,16 @@ func (it *FloatDecoder) Next() bool {
 
 	if it.first {
 		it.first = false
+
 		// mark as finished if there were no values.
 		if it.values[it.current] == uvnan { // IsNaN
 			it.finished = true
 			return false
 		}
+
 		return true
 	}
 
-	// read index of previous value
-	index, err := it.br.ReadBits(uint(previousValuesLog2))
-	if err != nil {
-		it.err = err
-		return false
-	}
 	// read compressed value
 	var bit bool
 	if it.br.CanReadBitFast() {
@@ -328,12 +269,65 @@ func (it *FloatDecoder) Next() bool {
 		bit = v
 	}
 	if !bit {
-		//fmt.Printf("Same value!\n")
-		// it.val = it.val
-		it.val = it.values[index]
-		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
-		it.current = (it.current + 1) % previousValues
-		it.values[it.current] = it.val
+		var bit bool
+		if it.br.CanReadBitFast() {
+			bit = it.br.ReadBitFast()
+		} else if v, err := it.br.ReadBit(); err != nil {
+			it.err = err
+			return false
+		} else {
+			bit = v
+		}
+		// read index of previous value
+		index, err := it.br.ReadBits(uint(previousValuesLog2))
+		if err != nil {
+			it.err = err
+			return false
+		}
+		//fmt.Printf("INDEX: %b\n", index)
+		if !bit {
+			it.val = it.values[index]
+			it.current = (it.current + 1) % previousValues
+			it.values[it.current] = it.val
+			//fmt.Printf("%d 1SV 00%b\n", it.leading, index)
+		} else {
+			bits, err := it.br.ReadBits(3)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			//fmt.Printf("%d 2NV: 01%b%b", it.leading, index, bits)
+			it.leading = getLeadingBits(bits)
+			bits, err = it.br.ReadBits(6)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			//fmt.Printf("%b", bits)
+			mbits := bits
+			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
+			if mbits == 0 {
+				mbits = 64
+			}
+			it.trailing = 64 - it.leading - mbits
+
+			sigbits, err := it.br.ReadBits(uint(mbits))
+			//fmt.Printf("%b\n", sigbits)
+			if err != nil {
+				it.err = err
+				return false
+			}
+			vbits := it.values[index]
+			vbits ^= (sigbits << it.trailing)
+
+			if vbits == uvnan { // IsNaN
+				it.finished = true
+				return false
+			}
+			it.val = vbits
+			it.current = (it.current + 1) % previousValues
+			it.values[it.current] = vbits
+		}
 	} else {
 		var bit bool
 		if it.br.CanReadBitFast() {
@@ -344,15 +338,8 @@ func (it *FloatDecoder) Next() bool {
 		} else {
 			bit = v
 		}
-
 		if !bit {
-			bits, err := it.br.ReadBits(3)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits * 2
-
+			//fmt.Printf("%d 3SL 10", it.leading)
 			mbits := 64 - it.leading
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
@@ -365,19 +352,14 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
-			it.leading = bits * 2
-
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			mbits := bits
+			it.leading = getLeadingBits(bits)
+			mbits := 64 - it.leading
+			//fmt.Printf("%d %d 4DL 11%b ", it.leading, mbits, bits)
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
 				mbits = 64
 			}
-			it.trailing = 64 - it.leading - mbits
+			it.trailing = 0
 		}
 
 		mbits := uint(64 - it.leading - it.trailing)
@@ -386,108 +368,44 @@ func (it *FloatDecoder) Next() bool {
 			it.err = err
 			return false
 		}
-
-		//vbits := it.val
-		vbits := it.values[index]
+		//fmt.Printf("%b\n", bits)
+		//fmt.Printf("%b\n", it.val)
+		vbits := it.val
 		vbits ^= (bits << it.trailing)
+		//fmt.Printf("%b\n\n", vbits)
 
 		if vbits == uvnan { // IsNaN
 			it.finished = true
 			return false
 		}
-		//fmt.Printf("Index: %d, Value: %64b\n", index, it.val)
 		it.val = vbits
 		it.current = (it.current + 1) % previousValues
-		it.values[it.current] = vbits
+		it.values[it.current] = it.val
 	}
 
 	return true
 }
 
-// Next2 returns true if there are remaining values to read.
-func (it *FloatDecoder) Next2() bool {
-	if it.err != nil || it.finished {
-		return false
+func getLeadingBits(bits uint64) uint64 {
+	switch bits {
+	case 0:
+		return 0
+	case 1:
+		return 8
+	case 2:
+		return 12
+	case 3:
+		return 14
+	case 4:
+		return 16
+	case 5:
+		return 18
+	case 6:
+		return 20
+	case 7:
+		return 22
 	}
-
-	if it.first {
-		it.first = false
-
-		// mark as finished if there were no values.
-		if it.val == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-
-		return true
-	}
-
-	// read compressed value
-	var bit bool
-	if it.br.CanReadBitFast() {
-		bit = it.br.ReadBitFast()
-	} else if v, err := it.br.ReadBit(); err != nil {
-		it.err = err
-		return false
-	} else {
-		bit = v
-	}
-
-	if !bit {
-		// it.val = it.val
-	} else {
-		var bit bool
-		if it.br.CanReadBitFast() {
-			bit = it.br.ReadBitFast()
-		} else if v, err := it.br.ReadBit(); err != nil {
-			it.err = err
-			return false
-		} else {
-			bit = v
-		}
-
-		if !bit {
-			// reuse leading/trailing zero bits
-			// it.leading, it.trailing = it.leading, it.trailing
-		} else {
-			bits, err := it.br.ReadBits(5)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			it.leading = bits
-
-			bits, err = it.br.ReadBits(6)
-			if err != nil {
-				it.err = err
-				return false
-			}
-			mbits := bits
-			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
-			if mbits == 0 {
-				mbits = 64
-			}
-			it.trailing = 64 - it.leading - mbits
-		}
-
-		mbits := uint(64 - it.leading - it.trailing)
-		bits, err := it.br.ReadBits(mbits)
-		if err != nil {
-			it.err = err
-			return false
-		}
-
-		vbits := it.val
-		vbits ^= (bits << it.trailing)
-
-		if vbits == uvnan { // IsNaN
-			it.finished = true
-			return false
-		}
-		it.val = vbits
-	}
-
-	return true
+	return 0
 }
 
 // Values returns the current float64 value.

@@ -38,8 +38,8 @@ func (i *index) addRecord(value float64, index uint64) {
 	}*/
 }
 
-func (i *index) getAll(value float64, index uint64, size uint64) uint64 {
-	maxTrailingBits := uint64(0)
+func (i *index) getAll(value float64, index uint64, size uint64, threshold uint64) uint64 {
+	maxTrailingBits := threshold
 	previousIndex := uint64(size)
 	key := math.Float64bits(value) & i.setLsb
 	pointer := (i.pointers[key] - 1) % positions
