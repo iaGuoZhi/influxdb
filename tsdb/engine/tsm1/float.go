@@ -113,7 +113,7 @@ func (s *FloatEncoder) Write(v float64) {
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
 		leadingRepresentation := uint64(0)
-		if leading < 9 {
+		if leading < 8 {
 			leading = 0
 		} else if leading < 12 {
 			leading = 8
