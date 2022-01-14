@@ -162,7 +162,7 @@ func (s *FloatEncoder) Write(v float64) {
 			leadingRepresentation = 7
 		}
 
-		if trailing > 5 {
+		if trailing > 12 {
 			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
 			s.bw.WriteBits(leadingRepresentation, 3)
