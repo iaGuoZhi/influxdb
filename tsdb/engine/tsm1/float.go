@@ -111,12 +111,12 @@ func (s *FloatEncoder) Write(v float64) {
 
 	previousIndex := s.current
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[s.current])
-	maxTrailingBits := 6
+	maxTrailingBits := int(threshold)
 	for i := uint64(0); i < previousValues; i++ {
 		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
 		trailingBits := bits.TrailingZeros64(iVDelta)
 		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
-		if trailingBits >= maxTrailingBits {
+		if trailingBits > maxTrailingBits {
 			previousIndex = i
 			maxTrailingBits = trailingBits
 			vDelta = iVDelta
@@ -179,7 +179,6 @@ func (s *FloatEncoder) Write(v float64) {
 			s.leading, s.trailing = leading, trailing
 			s.bw.WriteBits(16 + 8 + leadingRepresentation, 5)
 			s.bw.WriteBits(vDelta, int(64 - leading))
-			//fmt.Printf("%d DL: %b%b  %d %d\n", leading, 16 + 8 + leadingRepresentation, vDelta, leading, leadingRepresentation)
 		}
 	}
 	s.current = (s.current + 1) % previousValues
@@ -350,9 +349,9 @@ func (it *FloatDecoder) Next() bool {
 				it.err = err
 				return false
 			}
-			//fmt.Printf("%d 4DL 11%b", it.leading, bits)
 			it.leading = getLeadingBits(bits)
 			mbits := 64 - it.leading
+			//fmt.Printf("%d %d 4DL 11%b ", it.leading, mbits, bits)
 			// 0 significant bits here means we overflowed and we actually need 64; see comment in encoder
 			if mbits == 0 {
 				mbits = 64
@@ -367,8 +366,10 @@ func (it *FloatDecoder) Next() bool {
 			return false
 		}
 		//fmt.Printf("%b\n", bits)
+		//fmt.Printf("%b\n", it.val)
 		vbits := it.val
 		vbits ^= (bits << it.trailing)
+		//fmt.Printf("%b\n\n", vbits)
 
 		if vbits == uvnan { // IsNaN
 			it.finished = true
