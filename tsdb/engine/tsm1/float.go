@@ -24,6 +24,7 @@ const floatCompressedGorilla = 1
 
 const previousValues = 128
 var previousValuesLog2 =  int(math.Log2(previousValues))
+var threshold = 6 + uint64(previousValuesLog2)
 
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
@@ -137,7 +138,7 @@ func (s *FloatEncoder) Write(v float64) {
 		// Clamp number of leading zeros to avoid overflow when encoding
 		leading &= 0x1F
 		leadingRepresentation := uint64(0)
-		if leading < 9 {
+		if leading < 8 {
 			leading = 0
 		} else if leading < 12 {
 			leading = 8
@@ -162,7 +163,7 @@ func (s *FloatEncoder) Write(v float64) {
 			leadingRepresentation = 7
 		}
 
-		if trailing > 12 {
+		if trailing > threshold {
 			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
 			s.bw.WriteBits(leadingRepresentation, 3)
