@@ -25,6 +25,9 @@ const floatCompressedGorilla = 1
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
 
+// log64
+const threshold = 6
+
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
 	val float64
@@ -139,7 +142,7 @@ func (s *FloatEncoder) Write(v float64) {
 			leadingRepresentation = 7
 		}
 
-		if (trailing > 6) {
+		if trailing > threshold {
 			sigbits := 64 - leading - trailing
 			s.bw.WriteBits(8 + leadingRepresentation, 5)
 			s.bw.WriteBits(sigbits, 6)
