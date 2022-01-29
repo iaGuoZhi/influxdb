@@ -142,7 +142,7 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -333,7 +333,7 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -396,7 +396,7 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -459,7 +459,7 @@ func TestCompress_Stocks_USA_All(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -607,7 +607,7 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -758,7 +758,7 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -821,7 +821,7 @@ func TestCompress_Temp_BioMean(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -883,7 +883,7 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1342,7 +1342,7 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1404,7 +1404,7 @@ func TestCompress_Air_Sensor_Data(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1466,7 +1466,7 @@ func TestCompress_Bird_Migration_Data(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1528,6 +1528,6 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
