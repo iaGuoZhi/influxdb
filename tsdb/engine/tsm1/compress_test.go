@@ -125,16 +125,16 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 				elapsed := time.Since(start)
 				totalTime += elapsed
 
-		                // Read values out of decoder.
-			        got := make([]float64, 0, len(values))
-                                start2 := time.Now()
-                                var dec tsm1.FloatDecoder
-                                if err := dec.SetBytes(b); err != nil {
-                                        fmt.Printf("%s\n", err)
-                                }
-                                for dec.Next() {
-                                        got = append(got, dec.Values())
-                                }
+				// Read values out of decoder.
+			    got := make([]float64, 0, len(values))
+				start2 := time.Now()
+				var dec tsm1.FloatDecoder
+				if err := dec.SetBytes(b); err != nil {
+						fmt.Printf("%s\n", err)
+				}
+				for dec.Next() {
+						got = append(got, dec.Values())
+				}
 				elapsed2 := time.Since(start2)
 				decodingTime += elapsed2
 
@@ -142,7 +142,7 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
 
@@ -295,52 +295,48 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 
 func TestCompress_Stocks_UK_All(t *testing.T) {
 	size := 1000
@@ -362,52 +358,48 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 
 func TestCompress_Stocks_USA_All(t *testing.T) {
 	size := 1000
@@ -429,52 +421,48 @@ func TestCompress_Stocks_USA_All(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 func TestCompress_Temp_Air_FNLT(t *testing.T) {
 	size := 1000
 	layout := "2006-01-02T15:04:05Z"
@@ -581,52 +569,48 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 
 func TestCompress_Rel_Humidity_RHMean(t *testing.T) {
 	size := 1000
@@ -736,52 +720,48 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 
 func TestCompress_Temp_BioMean(t *testing.T) {
 	size := 1000
@@ -803,50 +783,45 @@ func TestCompress_Temp_BioMean(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
 
@@ -870,52 +845,48 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
+
 
 
 func TestCompress_Size_Dust_Particulate_PM10sub50RHMedian(t *testing.T) {
@@ -1333,50 +1304,45 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
 
@@ -1400,50 +1366,45 @@ func TestCompress_Air_Sensor_Data(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
 
@@ -1467,50 +1428,45 @@ func TestCompress_Bird_Migration_Data(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
 
@@ -1534,49 +1490,44 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		row4, err := strconv.Atoi(row[4])
-		row5, err := strconv.Atoi(row[5])
-		t, err := time.Parse(layout, fmt.Sprintf("%02d/%02d/%s 00:00:00", row4, row5, row[6]))
+		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			if value, err := strconv.ParseFloat(row[7], 64); err == nil {
-				values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-				//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		if value, err := strconv.ParseFloat(row[2], 64); err == nil {
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			//fmt.Printf("%d: %v\n", t.UnixNano(), value)
+		}
+		currentRow += 1
+		if currentRow == size {
+			totalBlocks += 1
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
-			currentRow += 1
-			if currentRow == size {
-				totalBlocks += 1
-				currentRow = 0
-				start := time.Now()
-				b, err := tsm1.Values(values).Encode(nil)
-				if err != nil {
-					fmt.Printf("unexpected error: %v\n", err)
-				}
+			elapsed := time.Since(start)
+			totalTime += elapsed
 
-				//fmt.Println(len(b))
-				totalSize += len(b)
 
-				elapsed := time.Since(start)
-				totalTime += elapsed
-
-				// Read values out of decoder.
-				got := make([]float64, 0, len(values))
-				start2 := time.Now()
-				var dec tsm1.FloatDecoder
-				if err := dec.SetBytes(b); err != nil {
-					fmt.Printf("%s\n", err)
-				}
-				for dec.Next() {
-					got = append(got, dec.Values())
-				}
-				elapsed2 := time.Since(start2)
-				decodingTime += elapsed2
-
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
 			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %s, Decoding time %s\n", totalSize, totalBlocks, totalTime, decodingTime)
 
 }
