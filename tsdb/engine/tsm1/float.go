@@ -144,8 +144,8 @@ func (s *FloatEncoder) Write(v float64) {
 
 		if trailing > threshold {
 			sigbits := 64 - leading - trailing
-			s.bw.WriteBits(8 + leadingRepresentation, 5)
-			s.bw.WriteBits(sigbits, 6)
+			s.bw.WriteBits(64 * (8 + leadingRepresentation) + sigbits, 11)
+			//s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 			s.leading = 65
 		} else if leading == s.leading {
