@@ -114,10 +114,14 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 				totalBlocks += 1
 				currentRow = 0
 				start := time.Now()
-				if b, err := tsm1.Values(values).Encode(nil); err == nil {
-					//fmt.Println(len(b))
-					totalSize += len(b)
-				}
+				b, err := tsm1.Values(values).Encode(nil)
+		                if err != nil {
+	                        fmt.Printf("unexpected error: %v\n", err)
+        		        }
+
+				//fmt.Println(len(b))
+				totalSize += len(b)
+				
 				elapsed := time.Since(start)
 				totalTime += elapsed
 
@@ -126,12 +130,12 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
                                 start2 := time.Now()
                                 var dec tsm1.FloatDecoder
                                 if err := dec.SetBytes(b); err != nil {
-                                        t.Fatal(err)
+                                        fmt.Printf("%s\n", err)
                                 }
                                 for dec.Next() {
                                         got = append(got, dec.Values())
                                 }
-				elapsed2 := time.Since(start)
+				elapsed2 := time.Since(start2)
 				decodingTime += elapsed2
 
 			}
