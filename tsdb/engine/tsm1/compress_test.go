@@ -94,7 +94,9 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		row4, err := strconv.Atoi(row[4])
@@ -109,19 +111,38 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 			}
 			currentRow += 1
 			if currentRow == size {
+				totalBlocks += 1
 				currentRow = 0
 				start := time.Now()
-				if b, err := tsm1.Values(values).Encode(nil); err == nil {
-					//fmt.Println(len(b))
-					totalSize += len(b)
-				}
+				b, err := tsm1.Values(values).Encode(nil)
+		                if err != nil {
+	                        fmt.Printf("unexpected error: %v\n", err)
+        		        }
+
+				//fmt.Println(len(b))
+				totalSize += len(b)
+				
 				elapsed := time.Since(start)
 				totalTime += elapsed
+
+				// Read values out of decoder.
+			    got := make([]float64, 0, len(values))
+				start2 := time.Now()
+				var dec tsm1.FloatDecoder
+				if err := dec.SetBytes(b); err != nil {
+						fmt.Printf("%s\n", err)
+				}
+				for dec.Next() {
+						got = append(got, dec.Values())
+				}
+				elapsed2 := time.Since(start2)
+				decodingTime += elapsed2
+
 			}
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -269,7 +290,9 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -282,18 +305,35 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -313,7 +353,9 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -326,18 +368,35 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -357,7 +416,9 @@ func TestCompress_Stocks_USA_All(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -370,18 +431,35 @@ func TestCompress_Stocks_USA_All(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -486,7 +564,9 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -499,18 +579,35 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -618,7 +715,9 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -631,18 +730,35 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -662,7 +778,9 @@ func TestCompress_Temp_BioMean(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -675,18 +793,35 @@ func TestCompress_Temp_BioMean(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -705,7 +840,9 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -718,18 +855,35 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1145,7 +1299,9 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -1158,18 +1314,35 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1188,7 +1361,9 @@ func TestCompress_Air_Sensor_Data(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -1201,18 +1376,35 @@ func TestCompress_Air_Sensor_Data(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1231,7 +1423,9 @@ func TestCompress_Bird_Migration_Data(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -1244,18 +1438,35 @@ func TestCompress_Bird_Migration_Data(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
 
@@ -1274,7 +1485,9 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
@@ -1287,17 +1500,34 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 		}
 		currentRow += 1
 		if currentRow == size {
+			totalBlocks += 1
 			currentRow = 0
 			start := time.Now()
-			if b, err := tsm1.Values(values).Encode(nil); err == nil {
-				//fmt.Println(len(b))
-				totalSize += len(b)
+			b, err := tsm1.Values(values).Encode(nil)
+			//fmt.Println(len(b))
+			totalSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
+
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
