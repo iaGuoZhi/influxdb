@@ -94,7 +94,9 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	scanner := bufio.NewScanner(gz)
 	currentRow := 0
 	totalSize := 0
+	totalBlocks := 0
 	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		row4, err := strconv.Atoi(row[4])
@@ -109,6 +111,7 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 			}
 			currentRow += 1
 			if currentRow == size {
+				totalBlocks += 1
 				currentRow = 0
 				start := time.Now()
 				if b, err := tsm1.Values(values).Encode(nil); err == nil {
@@ -117,11 +120,25 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 				}
 				elapsed := time.Since(start)
 				totalTime += elapsed
+
+		                // Read values out of decoder.
+			        got := make([]float64, 0, len(values))
+                                start2 := time.Now()
+                                var dec tsm1.FloatDecoder
+                                if err := dec.SetBytes(b); err != nil {
+                                        t.Fatal(err)
+                                }
+                                for dec.Next() {
+                                        got = append(got, dec.Values())
+                                }
+				elapsed2 := time.Since(start)
+				decodingTime += elapsed2
+
 			}
 		}
 	}
 
-	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
+	fmt.Printf("Total size: %v, Execution took %s, Decoding time %s\n", totalSize, totalTime, decodingTime)
 
 }
 
