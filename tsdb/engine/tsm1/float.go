@@ -164,9 +164,9 @@ func (s *FloatEncoder) Write(v float64) {
 
 		if trailing > threshold {
 			sigbits := 64 - leading - trailing
-			s.bw.WriteBits(previousValues + previousIndex, previousValuesLog2 + 2)
-			s.bw.WriteBits(leadingRepresentation, 3)
-			s.bw.WriteBits(sigbits, 6)
+			s.bw.WriteBits(512 * (previousValues + previousIndex) + 64 * leadingRepresentation + sigbits, previousValuesLog2 + 11)
+			//s.bw.WriteBits(leadingRepresentation, 3)
+			//s.bw.WriteBits(sigbits, 6)
 			s.bw.WriteBits(vDelta>>trailing, int(sigbits))
 			s.leading = 65
 			//fmt.Printf("%d NV: 0%b%b%b%b\n", leading, previousValues + previousIndex, leadingRepresentation, sigbits, vDelta>>trailing)
