@@ -22,6 +22,7 @@ import (
 const floatCompressedGorilla = 1
 
 const previousValues = 128
+
 var previousValuesLog2 =  int(math.Log2(previousValues))
 var threshold = 6 + uint64(previousValuesLog2)
 
@@ -142,23 +143,23 @@ func (s *FloatEncoder) Write(v float64) {
 		} else if leading < 12 {
 			leading = 8
 			leadingRepresentation = 1
-		}  else if leading < 14 {
+		}  else if leading < 16 {
 			leading = 12
 			leadingRepresentation = 2
-		}  else if leading < 16 {
-			leading = 14
-			leadingRepresentation = 3
 		}  else if leading < 18 {
 			leading = 16
-			leadingRepresentation = 4
+			leadingRepresentation = 3
 		}  else if leading < 20 {
 			leading = 18
-			leadingRepresentation = 5
+			leadingRepresentation = 4
 		}  else if leading < 22 {
 			leading = 20
-			leadingRepresentation = 6
-		} else if leading >= 22 {
+			leadingRepresentation = 5
+		}  else if leading < 24 {
 			leading = 22
+			leadingRepresentation = 6
+		} else if leading >= 24 {
+			leading = 24
 			leadingRepresentation = 7
 		}
 
@@ -395,15 +396,15 @@ func getLeadingBits(bits uint64) uint64 {
 	case 2:
 		return 12
 	case 3:
-		return 14
-	case 4:
 		return 16
-	case 5:
+	case 4:
 		return 18
-	case 6:
+	case 5:
 		return 20
-	case 7:
+	case 6:
 		return 22
+	case 7:
+		return 24
 	}
 	return 0
 }
