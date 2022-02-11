@@ -9,7 +9,7 @@ const positions = previousValues / 16
 type index struct {
 	setLsb uint64
 	//array [32]*list.List
-	array [32]*myList
+	//array [32]*myList
 	values [32][positions]float64
 	indices [32][positions]uint64
 	pointers [32]uint8
