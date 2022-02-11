@@ -31,6 +31,7 @@ const uvnan = 0x7FF8000000000001
 // FloatEncoder encodes multiple float64s into a byte slice.
 type FloatEncoder struct {
 	val [previousValues]float64
+	i *index
 	err error
 
 	leading  uint64
@@ -42,6 +43,8 @@ type FloatEncoder struct {
 	first    bool
 	finished bool
 	current  uint64
+	index      uint64
+	comparisonsCounter  uint64
 }
 
 // NewFloatEncoder returns a new FloatEncoder.
@@ -49,6 +52,8 @@ func NewFloatEncoder() *FloatEncoder {
 	s := FloatEncoder{
 		first:   true,
 		leading: ^uint64(0),
+		i:       createIndex(),
+
 	}
 
 	s.bw = bitstream.NewWriter(&s.buf)
@@ -62,9 +67,11 @@ func (s *FloatEncoder) Reset() {
 	for i := 0; i < previousValues; i++ {
 		s.val[i] = 0
 	}
+	s.i = createIndex()
 	s.err = nil
 	s.leading = ^uint64(0)
 	s.trailing = 0
+	s.comparisonsCounter = 0
 	s.buf.Reset()
 	s.buf.WriteByte(floatCompressedGorilla << 4)
 
@@ -73,6 +80,7 @@ func (s *FloatEncoder) Reset() {
 	s.finished = false
 	s.first = true
 	s.current = 0
+	s.index = 0
 }
 
 // Bytes returns a copy of the underlying byte buffer used in the encoder.
@@ -103,29 +111,19 @@ func (s *FloatEncoder) Write(v float64) {
 	if s.first {
 		// first point
 		s.val[s.current] = v
+		s.i.addRecord(v, s.index)
 		s.first = false
 		//fmt.Printf("Value: %G, writing first as float64\n", s.val)
 		s.bw.WriteBits(math.Float64bits(v), 64)
 		return
 	}
 
-	previousIndex := s.current
-	//vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
-	var vDelta uint64
-	maxTrailingBits := 0
-	for i := uint64(0); i < previousValues; i++ {
-		iVDelta := math.Float64bits(v) ^ math.Float64bits(s.val[i])
-		trailingBits := bits.TrailingZeros64(iVDelta)
-		//fmt.Printf("Checking: %d, trailing: %d, %064b\n", i, trailingBits, iVDelta)
-		if trailingBits >= maxTrailingBits {
-			previousIndex = i
-			maxTrailingBits = trailingBits
-			vDelta = iVDelta
-			/*if vDelta == 0 {
-				break
-			}*/
-		}
+	previousIndex := s.i.getAll(v, s.index, previousValues, threshold)
+	if previousIndex == previousValues {
+		previousIndex = s.index % previousValues
 	}
+
+	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val[previousIndex])
 
 	//fmt.Printf("Index: %d, trailing: %d\n", previousIndex, maxTrailingBits)
 
@@ -169,8 +167,11 @@ func (s *FloatEncoder) Write(v float64) {
 		}
 	}
 
-	s.current = (s.current + 1 ) % previousValues
+	s.current = (s.current + 1) % previousValues
 	s.val[s.current] = v
+	s.index = s.index + 1
+	//fmt.Printf("Adding %v with %d\n", v, s.index)
+	s.i.addRecord(v, s.index)
 }
 
 // Write2 encodes v to the underlying buffer.
@@ -239,7 +240,7 @@ type FloatDecoder struct {
 
 	leading  uint64
 	trailing uint64
-    current uint64
+	current uint64
 
 	br BitReader
 	b  []byte
