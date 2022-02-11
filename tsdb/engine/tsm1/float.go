@@ -24,6 +24,7 @@ const floatCompressedGorilla = 1
 
 const previousValues = 128
 var previousValuesLog2 =  int(math.Log2(previousValues))
+var threshold = 0
 
 // uvnan is the constant returned from math.NaN().
 const uvnan = 0x7FF8000000000001
