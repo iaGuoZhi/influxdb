@@ -12,11 +12,13 @@ $ vagrant ssh # to log in the vm
 $ cd /vagrant # to switch to the directory that contains the code and proceed to building and testing
 ````
 
-This will create a virtual machine with all dependencies installed and switch to the directory that contains the code. If you choose to omit this step please follow the "building from source" guidelines provided in the following link:
-
-https://github.com/influxdata/influxdb/blob/master/CONTRIBUTING.md
+This will create a virtual machine with all dependencies installed and switch to the directory that contains the code.
 
 ## Building
+
+If you chose to omit the previous step please follow the "building from source" guidelines provided in the following link:
+
+https://github.com/influxdata/influxdb/blob/master/CONTRIBUTING.md
 
 Make sure you have go and rustc installed. The version of rustc should be < 1.54.0
 
@@ -35,7 +37,7 @@ $ make
 
 ## Testing
 
-Testing is as simple as checking out the appropriate branch and executing a single command:
+Testing is as simple as checking out the appropriate branch and executing a single command (you should be in /vagrant directory if you are using the vm):
 
 
 ### Chimp
