@@ -1,6 +1,6 @@
 # Chimp
 
-Code and reproducible tests for comparing Chimp and Gorilla lossless streaming compression algorithms. The repository is forked from https://github.com/influxdata/influxdb and contains all code to build InfluxDB.
+Code and reproducible tests for comparing Chimp and Gorilla lossless streaming compression algorithms. We provide the means to reproduce our tests for datasets that we use in our work using just a few commands. The repository is forked from https://github.com/influxdata/influxdb and contains all code to build InfluxDB.
 
 ## Vagrant (optional)
 
