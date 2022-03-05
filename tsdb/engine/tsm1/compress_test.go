@@ -1588,7 +1588,7 @@ func TestCompress_Basel_Temp(t *testing.T) {
                 }
         }
 
-        fmt.Printf("Bits per value: %v\nCompression time per block %v\nDecoding time per block %v\n", float64(totalSize*8)/float64(totalBlocks*1000+currentRow), float64(totalTime.Nanoseconds())/float64(totalBlocks), float64(decodingTime.Nanoseconds())/float64(totalBlocks))
+        fmt.Printf("Bits per value: %v\nCompression time per block %v\nDecoding time per block %v\n", float64(totalSize*8)/float64(totalBlocks*1000), float64(totalTime.Nanoseconds())/float64(totalBlocks), float64(decodingTime.Nanoseconds())/float64(totalBlocks))
 
 }
 
@@ -1649,7 +1649,7 @@ func TestCompress_Basel_Wind_Speed(t *testing.T) {
                 }
         }
 
-        fmt.Printf("Bits per value: %v\nCompression time per block %v\nDecoding time per block %v\n", float64(totalSize*8)/float64(totalBlocks*1000+currentRow), float64(totalTime.Nanoseconds())/float64(totalBlocks), float64(decodingTime.Nanoseconds())/float64(totalBlocks))
+        fmt.Printf("Bits per value: %v\nCompression time per block %v\nDecoding time per block %v\n", float64(totalSize*8)/float64(totalBlocks*1000), float64(totalTime.Nanoseconds())/float64(totalBlocks*1000), float64(decodingTime.Nanoseconds())/float64(totalBlocks*1000))
 
 }
 
