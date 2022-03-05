@@ -98,7 +98,7 @@ Bits per value: 65.22103225806451
 .
 ```
 
-### Clean up
+## Clean up
 
 ```
 $ git checkout master
