@@ -95,6 +95,6 @@ Bits per value: 65.22103225806451
 
 ## Who do I talk to?
 
-* Panagiotis Liakos: cgi.di.uoa.gr/~p.liakos/
+* Panagiotis Liakos: http://cgi.di.uoa.gr/~p.liakos/
 * Katia Papakonstantinopoulou: www.aueb.gr/users/katia
 * Yannis Kotidis http://pages.cs.aueb.gr/~kotidis/
