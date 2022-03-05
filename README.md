@@ -68,7 +68,9 @@ Switched to branch 'chimp128'
 $ go test  -test.timeout 0 -run TestCompress_Basel -v github.com/influxdata/influxdb/v2/tsdb/engine/tsm1 
 === RUN   TestCompress_Basel_Temp
 Bits per value: 29.35258064516129
-...
+.
+.
+.
 ```
 
 ### Gorilla
@@ -78,7 +80,9 @@ Switched to branch 'gorilla'
 $ go test  -test.timeout 0 -run TestCompress_Basel -v github.com/influxdata/influxdb/v2/tsdb/engine/tsm1 
 === RUN   TestCompress_Basel_Temp
 Bits per value: 60.208193548387094
-...
+.
+.
+.
 ```
 
 ### Gorilla128
@@ -89,7 +93,9 @@ Switched to branch 'gorilla128'
 $ go test  -test.timeout 0 -run TestCompress_Basel -v github.com/influxdata/influxdb/v2/tsdb/engine/tsm1 
 === RUN   TestCompress_Basel_Temp
 Bits per value: 65.22103225806451
-...
+.
+.
+.
 ```
 
 
