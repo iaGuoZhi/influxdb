@@ -86,6 +86,7 @@ Vagrant.configure("2") do |config|
     rustup default 1.53.0
     echo "export GOPATH=/home/vagrant/go" >> ~/.profile
     echo "export PATH=/home/vagrant/go/bin:$PATH:/usr/local/go/bin" >> ~/.profile
+    source ~/.profile
     export GO111MODULE=on 
     go get github.com/influxdata/pkg-config@v0.2.7
   SHELL
