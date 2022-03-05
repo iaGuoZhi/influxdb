@@ -98,6 +98,16 @@ Bits per value: 65.22103225806451
 .
 ```
 
+### Clean up
+
+```
+$ git checkout master
+Switched to branch 'master'
+Your branch is up to date with 'origin/master'.
+$ vagrant halt; vagrant destroy -f
+==> default: Attempting graceful shutdown of VM...
+==> default: Destroying VM and associated drives...
+```
 
 ## Who do I talk to?
 
