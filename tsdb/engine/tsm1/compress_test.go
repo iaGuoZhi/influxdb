@@ -1654,11 +1654,11 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 //}
 //
 func TestCompress_Basel_CR_and_Thru(t *testing.T) {
-        size := 1000
+        size := 100000
         layout := "01/02/2006 15:04:05"
         values := make([]tsm1.Value, size)
 
-        f, err := os.Open("../../../datasets/basel-temp.csv.gz")
+        f, err := os.Open("../../../datasets/basel-cr-and-thru")
         defer f.Close()
         gz, err := gzip.NewReader(f)
         if err != nil {
@@ -1672,6 +1672,7 @@ func TestCompress_Basel_CR_and_Thru(t *testing.T) {
         totalTime := time.Duration(0)
         decodingTime := time.Duration(0)
         for scanner.Scan() {
+                start := time.Now()
                 row := strings.Split(scanner.Text(), ",")
                 t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
                 if err != nil {
@@ -1681,6 +1682,8 @@ func TestCompress_Basel_CR_and_Thru(t *testing.T) {
                         values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
                 }
                 currentRow += 1
+                elapsed := time.Since(start)
+                totalTime += elapsed
                 if currentRow == size {
                         totalBlocks += 1
                         currentRow = 0
@@ -1694,8 +1697,8 @@ func TestCompress_Basel_CR_and_Thru(t *testing.T) {
                         totalTime += elapsed
 
                         // Read values out of decoder.
-                        got := make([]float64, 0, len(values))
                         start2 := time.Now()
+                        got := make([]float64, 0, len(values))
                         var dec tsm1.FloatDecoder
                         if err := dec.SetBytes(b); err != nil {
                                 fmt.Printf("%s\n", err)
@@ -1708,5 +1711,5 @@ func TestCompress_Basel_CR_and_Thru(t *testing.T) {
                 }
         }
 
-        fmt.Fprintf(os.Stderr, "Comp-bytes: %v cr: %v Compression time: %v Decoding time: %v\n", totalSize, float64(totalSize)/float64(totalBlocks*1000), float64(totalTime.Nanoseconds()), float64(decodingTime.Nanoseconds()))
+        fmt.Fprintf(os.Stderr, "Comp-bytes: %v cr: %v Compression time: %v Decoding time: %v\n", totalSize, float64(totalSize)/float64(totalBlocks*1000), float64(totalTime.Milliseconds()), float64(decodingTime.Milliseconds()))
 }
