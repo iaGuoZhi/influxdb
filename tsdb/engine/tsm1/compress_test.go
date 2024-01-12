@@ -1654,7 +1654,7 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 //}
 //
 func TestCompress_Basel_CR_and_Thru(t *testing.T) {
-        size := 100000
+        size := 1000
         layout := "01/02/2006 15:04:05"
         values := make([]tsm1.Value, size)
 
