@@ -1620,6 +1620,7 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 //	       fmt.Printf("Bits per value: %v\nCompression time per block %v\nDecoding time per block %v\n", float64(totalSize*8)/float64(totalBlocks*1000), float64(totalTime.Nanoseconds())/float64(totalBlocks*1000), float64(decodingTime.Nanoseconds())/float64(totalBlocks*1000))
 //
 // }
+
 func TestCompress_CR_and_Thru(t *testing.T) {
 	size := 1000
 	values := make([]tsm1.Value, size)
