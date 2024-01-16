@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"encoding/binary"
+	"encoding/csv"
 	"fmt"
 	"math/rand"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/influxdata/influxdb/v2/tsdb/engine/tsm1"
 )
 
-
 func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 	rand.Seed(23)
 	var firstTimestamp int64 = 1444238178437870000
@@ -23,9 +23,9 @@ func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 	var size = 1000
 	values := make([]tsm1.Value, size)
 	var totalSize = int(0)
-	for iteration:= 0; iteration < iterations; iteration++ {
+	for iteration := 0; iteration < iterations; iteration++ {
 		for i := 0; i < size; i++ {
-			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * 0.1
+			var value float64 = 300*float64(i*(iteration+1)) + 20 + float64(rand.Int()%10)*0.1
 			values[i] = tsm1.NewValue(firstTimestamp, value)
 			firstTimestamp += 1
 		}
@@ -38,7 +38,6 @@ func TestCompress_FloatBlock_SlopeFloats(t *testing.T) {
 	fmt.Printf("Total bits: %v\n", totalSize)
 }
 
-
 func TestCompress_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
 	rand.Seed(23)
 	var firstTimestamp int64 = 1444238178437870000
@@ -46,9 +45,9 @@ func TestCompress_FloatBlock_SlopeFloatsRandomNoise(t *testing.T) {
 	var size = 1000
 	values := make([]tsm1.Value, size)
 	var totalSize = int(0)
-	for iteration:= 0; iteration < iterations; iteration++ {
+	for iteration := 0; iteration < iterations; iteration++ {
 		for i := 0; i < size; i++ {
-			var value float64 = 300 * float64(i * (iteration + 1)) + 20 + float64(rand.Int() % 10) * rand.Float64()
+			var value float64 = 300*float64(i*(iteration+1)) + 20 + float64(rand.Int()%10)*rand.Float64()
 			values[i] = tsm1.NewValue(firstTimestamp, value)
 			firstTimestamp += 1
 		}
@@ -77,7 +76,6 @@ func TestCompress_FloatBlock_Temperature_Floats(t *testing.T) {
 	}
 
 }
-
 
 func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	size := 1000
@@ -115,9 +113,9 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 				currentRow = 0
 				start := time.Now()
 				b, err := tsm1.Values(values).Encode(nil)
-		                if err != nil {
-	                        fmt.Printf("unexpected error: %v\n", err)
-        		        }
+				if err != nil {
+					fmt.Printf("unexpected error: %v\n", err)
+				}
 
 				//fmt.Println(len(b))
 				totalSize += len(b)
@@ -126,14 +124,14 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 				totalTime += elapsed
 
 				// Read values out of decoder.
-			    got := make([]float64, 0, len(values))
+				got := make([]float64, 0, len(values))
 				start2 := time.Now()
 				var dec tsm1.FloatDecoder
 				if err := dec.SetBytes(b); err != nil {
-						fmt.Printf("%s\n", err)
+					fmt.Printf("%s\n", err)
 				}
 				for dec.Next() {
-						got = append(got, dec.Values())
+					got = append(got, dec.Values())
 				}
 				elapsed2 := time.Since(start2)
 				decodingTime += elapsed2
@@ -145,7 +143,6 @@ func TestCompress_FloatBlock_Temperature_Floats_All(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
 
 func TestCompress_Stocks_Germany(t *testing.T) {
 	size := 1000
@@ -274,7 +271,6 @@ func TestCompress_Stocks_USA(t *testing.T) {
 
 }
 
-
 func TestCompress_Stocks_Germany_All(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -317,7 +313,6 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -336,7 +331,6 @@ func TestCompress_Stocks_Germany_All(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
 
 func TestCompress_Stocks_UK_All(t *testing.T) {
 	size := 1000
@@ -380,7 +374,6 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -399,7 +392,6 @@ func TestCompress_Stocks_UK_All(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
 
 func TestCompress_Stocks_USA_All(t *testing.T) {
 	size := 1000
@@ -442,7 +434,6 @@ func TestCompress_Stocks_USA_All(t *testing.T) {
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
-
 
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
@@ -591,7 +582,6 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -610,7 +600,6 @@ func TestCompress_Rel_Humidity_DewTemp(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
 
 func TestCompress_Rel_Humidity_RHMean(t *testing.T) {
 	size := 1000
@@ -655,7 +644,6 @@ func TestCompress_Rel_Humidity_RHMean(t *testing.T) {
 
 }
 
-
 func TestCompress_Rel_Humidity_TempRHMean(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -699,7 +687,6 @@ func TestCompress_Rel_Humidity_TempRHMean(t *testing.T) {
 
 }
 
-
 func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -742,7 +729,6 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -761,7 +747,6 @@ func TestCompress_Pressure_Air_StaPresMean(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
 
 func TestCompress_Temp_BioMean(t *testing.T) {
 	size := 1000
@@ -804,7 +789,6 @@ func TestCompress_Temp_BioMean(t *testing.T) {
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
-
 
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
@@ -867,7 +851,6 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -886,8 +869,6 @@ func TestCompress_Size_Dust_Particulate_PM10Median(t *testing.T) {
 	fmt.Printf("Total size: %v, Total Blocks: %v, Execution took %d, Decoding time %d\n", totalSize, totalBlocks, totalTime.Nanoseconds(), decodingTime.Nanoseconds())
 
 }
-
-
 
 func TestCompress_Size_Dust_Particulate_PM10sub50RHMedian(t *testing.T) {
 	size := 1000
@@ -975,8 +956,6 @@ func TestCompress_Size_Dust_Particulate_PM15Median(t *testing.T) {
 
 }
 
-
-
 func TestCompress_Size_Dust_Particulate_PM15sub50RHMedian(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -1062,8 +1041,6 @@ func TestCompress_Size_Dust_Particulate_PM1Median(t *testing.T) {
 	fmt.Printf("Total size: %v, Execution took %s\n", totalSize, totalTime)
 
 }
-
-
 
 func TestCompress_Size_Dust_Particulate_PM1sub50RHMedian(t *testing.T) {
 	size := 1000
@@ -1151,8 +1128,6 @@ func TestCompress_Size_Dust_Particulate_PM25Median(t *testing.T) {
 
 }
 
-
-
 func TestCompress_Size_Dust_Particulate_PM25sub50RHMedian(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -1239,8 +1214,6 @@ func TestCompress_Size_Dust_Particulate_PM4Median(t *testing.T) {
 
 }
 
-
-
 func TestCompress_Size_Dust_Particulate_PM4sub50RHMedian(t *testing.T) {
 	size := 1000
 	layout := "01/02/2006 15:04:05"
@@ -1326,7 +1299,6 @@ func TestCompress_Wind_2d_windDirMean(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -1387,7 +1359,6 @@ func TestCompress_Air_Sensor_Data(t *testing.T) {
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
-
 
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
@@ -1450,7 +1421,6 @@ func TestCompress_Bird_Migration_Data(t *testing.T) {
 			elapsed := time.Since(start)
 			totalTime += elapsed
 
-
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
 			start2 := time.Now()
@@ -1511,7 +1481,6 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 			}
 			elapsed := time.Since(start)
 			totalTime += elapsed
-
 
 			// Read values out of decoder.
 			got := make([]float64, 0, len(values))
@@ -1653,63 +1622,68 @@ func TestCompress_Bitcoin_Price_Data(t *testing.T) {
 //
 //}
 //
-func TestCompress_Basel_CR_and_Thru(t *testing.T) {
-        size := 1000
-        layout := "01/02/2006 15:04:05"
-        values := make([]tsm1.Value, size)
 
-        f, err := os.Open("../../../datasets/basel-cr-and-thru")
-        defer f.Close()
-        gz, err := gzip.NewReader(f)
-        if err != nil {
-                fmt.Println(err)
-        }
-        defer gz.Close()
-        scanner := bufio.NewScanner(gz)
-        currentRow := 0
-        totalSize := 0
-        totalBlocks := 0
-        totalTime := time.Duration(0)
-        decodingTime := time.Duration(0)
-        for scanner.Scan() {
-                start := time.Now()
-                row := strings.Split(scanner.Text(), ",")
-                t, err := time.Parse(layout, fmt.Sprintf("%s %s", row[0], row[1]))
-                if err != nil {
-                        fmt.Println(err)
-                }
-                if value, err := strconv.ParseFloat(row[2], 64); err == nil {
-                        values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
-                }
-                currentRow += 1
-                elapsed := time.Since(start)
-                totalTime += elapsed
-                if currentRow == size {
-                        totalBlocks += 1
-                        currentRow = 0
-                        start := time.Now()
-                        b, err := tsm1.Values(values).Encode(nil)
-                        totalSize += len(b)
-                        if err != nil {
-                                fmt.Printf("unexpected error: %v\n", err)
-                        }
-                        elapsed := time.Since(start)
-                        totalTime += elapsed
+func TestCompress_CR_and_Thru(t *testing.T) {
+	size := 1000
+	values := make([]tsm1.Value, size)
 
-                        // Read values out of decoder.
-                        start2 := time.Now()
-                        got := make([]float64, 0, len(values))
-                        var dec tsm1.FloatDecoder
-                        if err := dec.SetBytes(b); err != nil {
-                                fmt.Printf("%s\n", err)
-                        }
-                        for dec.Next() {
-                                got = append(got, dec.Values())
-                        }
-                        elapsed2 := time.Since(start2)
-                        decodingTime += elapsed2
-                }
-        }
+	f, err := os.Open("../../../datasets/float.csv")
+	defer f.Close()
 
-        fmt.Fprintf(os.Stderr, "Comp-bytes: %v cr: %v Compression time: %v Decoding time: %v\n", totalSize, float64(totalSize)/float64(totalBlocks*1000), float64(totalTime.Milliseconds()), float64(decodingTime.Milliseconds()))
+  fileinfo, err := f.Stat()
+  if err != nil {
+    fmt.Println(err)
+  }
+  originalSize := fileinfo.Size()
+
+	reader := csv.NewReader(f)
+  records, err := reader.ReadAll()
+  if err != nil {
+    fmt.Println(err)
+  }
+
+	currentRow := 0
+  compressedSize := 0
+	totalTime := time.Duration(0)
+	decodingTime := time.Duration(0)
+
+  for _, row := range records {
+		t, err := time.Parse(time.RFC3339, row[0])
+		if err != nil {
+			fmt.Println(err)
+		}
+		if value, err := strconv.ParseFloat(row[1], 64); err == nil {
+			//values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+			values[currentRow] = tsm1.NewValue(t.UnixNano(), value)
+      //fmt.Println(values[currentRow])
+		}
+		currentRow += 1
+		if currentRow == size {
+			currentRow = 0
+			start := time.Now()
+			b, err := tsm1.Values(values).Encode(nil)
+			compressedSize += len(b)
+			if err != nil {
+				fmt.Printf("unexpected error: %v\n", err)
+			}
+			elapsed := time.Since(start)
+			totalTime += elapsed
+
+			// Read values out of decoder.
+			got := make([]float64, 0, len(values))
+			start2 := time.Now()
+			var dec tsm1.FloatDecoder
+			if err := dec.SetBytes(b); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			for dec.Next() {
+//        fmt.Println(dec.Values())
+				got = append(got, dec.Values())
+			}
+			elapsed2 := time.Since(start2)
+			decodingTime += elapsed2
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Comp-bytes: %v cr: %v Compression time: %v Decoding time: %v\n", originalSize, float64(originalSize)/float64(compressedSize), float64(totalTime.Nanoseconds()), float64(decodingTime.Nanoseconds()))
 }
